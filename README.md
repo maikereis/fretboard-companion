@@ -47,6 +47,12 @@ It is made for:
 ### Play it anywhere on the neck
 - The five **CAGED shapes** (C, A, G, E, D) show the same chord in five positions, each named after the open chord it comes from.
 
+### Find scales
+- A **Chords / Scales** switch in the sidebar. In Scales mode the fretboard shows every note of the scale, labelled with note names or scale degrees.
+- 12 scales: major, natural minor, major and minor pentatonic, blues, the five other modes (dorian, phrygian, lydian, mixolydian, locrian), harmonic minor and melodic minor.
+- **Positions**: pick one "box" at a time (5 for pentatonic scales, 7 for the others) to learn the neck piece by piece. Play the scale up or down and watch the notes ripple.
+- **Chords from this scale**: the triads and 7th chords built on each note, with Roman numerals. Tap one to jump to it in Chords mode.
+
 ### Make it yours
 - **Light and Night** themes. It follows your device on the first visit, then remembers your choice.
 - Works on desktop, tablet and phone.
@@ -86,7 +92,7 @@ Thank you! Every bit of support goes toward new chord types, scales and more voi
 ## Roadmap
 
 - [x] More chord types: sus, 6th and power chords
-- [ ] Scale finder
+- [x] Scale finder
 - [ ] Progression player
 - [ ] More voicings per chord
 

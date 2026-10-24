@@ -644,3 +644,14 @@ details[open] summary {
 #quals .qgroup { grid-column: 1 / -1; margin: 8px 0 0; font-size: .8rem; font-weight: 700; color: var(--mut); text-transform: uppercase; letter-spacing: .04em; }
 #quals .qgroup:first-child { margin-top: 0; }
 #quals button { padding: 6px 10px; font-size: .92rem; }
+
+/* Scale finder */
+[hidden] { display: none !important; }
+#scales { grid-template-columns: 1fr 1fr; }
+#scales .qgroup { grid-column: 1 / -1; margin: 8px 0 0; font-size: .8rem; font-weight: 700; color: var(--mut); text-transform: uppercase; letter-spacing: .04em; }
+#scales .qgroup:first-child { margin-top: 0; }
+#scales button, #positions button { padding: 6px 10px; font-size: .92rem; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+.scale-card .cname { font-size: clamp(3rem, 6vw, 5rem); }
+.scale-card .row { margin-top: 10px; }
+#views { margin-bottom: 4px; }
