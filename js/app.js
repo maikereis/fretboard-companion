@@ -10,7 +10,7 @@ const SUF={maj:'',min:'m','7':'7',maj7:'maj7',m7:'m7'};
 const LONG={maj:'Major',min:'Minor','7':'Dominant 7',maj7:'Major 7',m7:'Minor 7'};
 // Open-position chord of each CAGED shape (strings 6 to 1, -1 = muted). Sliding a shape up by N frets plays it N semitones higher.
 const SPC={C:0,A:9,G:7,E:4,D:2}; // pitch class of each shape
-const T={maj:{E:[0,2,2,1,0,0],A:[-1,0,2,2,2,0],C:[-1,3,2,0,1,0],G:[3,2,0,0,0,3],D:[-1,-1,0,2,3,2]},min:{E:[0,2,2,0,0,0],A:[-1,0,2,2,1,0],C:[-1,3,1,0,1,-1],G:[3,1,0,0,3,3],D:[-1,-1,0,2,3,1]},'7':{E:[0,2,0,1,0,0],A:[-1,0,2,0,2,0],C:[-1,3,2,3,1,0],G:[3,2,0,0,0,1],D:[-1,-1,0,2,1,2]},maj7:{E:[0,2,1,1,0,0],A:[-1,0,2,1,2,0],C:[-1,3,2,0,0,0],G:[3,2,0,0,0,2],D:[-1,-1,0,2,2,2]},m7:{E:[0,2,0,0,0,0],A:[-1,0,2,0,1,0],C:[-1,3,1,3,1,-1],G:[3,1,0,0,3,1],D:[-1,-1,0,2,1,1]}};
+const T={maj:{E:[0,2,2,1,0,0],A:[-1,0,2,2,2,0],C:[-1,3,2,0,1,0],G:[3,2,0,0,0,3],D:[-1,-1,0,2,3,2]},min:{E:[0,2,2,0,0,0],A:[-1,0,2,2,1,0],C:[-1,3,1,-1,1,3],G:[3,1,0,0,3,3],D:[-1,-1,0,2,3,1]},'7':{E:[0,2,0,1,0,0],A:[-1,0,2,0,2,0],C:[-1,3,2,3,1,0],G:[3,2,0,0,0,1],D:[-1,-1,0,2,1,2]},maj7:{E:[0,2,1,1,0,0],A:[-1,0,2,1,2,0],C:[-1,3,2,0,0,0],G:[3,2,0,0,0,2],D:[-1,-1,0,2,2,2]},m7:{E:[0,2,0,0,0,0],A:[-1,0,2,0,1,0],C:[-1,3,1,3,1,-1],G:[3,1,0,0,3,1],D:[-1,-1,0,2,1,1]}};
 const DESC={
 maj:'Bright and stable. Built from the 1st, major 3rd and 5th notes of the major scale. The sound of “home”.',
 min:'Darker, more serious. Same as major, but the 3rd is lowered one fret (a “flat 3rd”).',
@@ -22,14 +22,49 @@ const RN=['I','ii','iii','IV','V','vi','vii°'],RN7=['Imaj7','iim7','iiim7','IVm
 const st={r:7,q:'maj',sh:'E',mode:'fingers',rot:false};
 const $=id=>document.getElementById(id);
 
+// Fingers (1 = index, 2 = middle, 3 = ring, 4 = pinky) for the open-position version of each shape, strings 6 to 1.
+// Same numbers as the standardguitar.com chord pages (e.g. Em = 1 on A, 2 on D) and standard teaching fingerings.
+const OF={
+maj:{E:[0,2,3,1,0,0],A:[0,0,1,2,3,0],C:[0,3,2,0,1,0],G:[2,1,0,0,0,3],D:[0,0,0,1,3,2]},
+min:{E:[0,1,2,0,0,0],A:[0,0,2,3,1,0],C:[0,3,1,0,1,4],G:[2,1,0,0,3,4],D:[0,0,0,2,3,1]},
+'7':{E:[0,2,0,1,0,0],A:[0,0,1,0,2,0],C:[0,3,2,4,1,0],G:[3,2,0,0,0,1],D:[0,0,0,2,1,3]},
+maj7:{E:[0,3,1,2,0,0],A:[0,0,2,1,3,0],C:[0,3,2,0,0,0],G:[3,1,0,0,0,2],D:[0,0,0,1,2,3]},
+m7:{E:[0,1,0,0,0,0],A:[0,0,2,0,1,0],C:[0,3,1,4,1,0],G:[3,1,0,0,4,2],D:[0,0,0,2,1,1]}};
+// Two shapes need a string muted once they slide up the neck, because the open string would need a 5th finger.
+const TS={'7':{C:[-1,3,2,3,1,-1]},m7:{G:[3,1,0,0,-1,1]}};
+// Fingering for a shape slid up the neck (base > 0). Open strings of the template become the index-finger barre.
+// Every other note sits at (fret - base + 1) as a finger number, bumped up where two notes share a fret, pushed back
+// down when it would pass the pinky, and notes that one finger can lay across (same fret, nothing lower in between)
+// are merged into a mini-barre when there are three or more of them or when fingers would run out.
+function barreFingers(t,fr,base){
+ const fg=Array(6).fill(0),bar=[],rest=[];
+ fr.forEach((f,i)=>{if(f>0)(t[i]===0?bar:rest).push(i)});
+ bar.forEach(i=>fg[i]=1);
+ const hasBar=bar.length>0,lo=Math.min(99,...rest.map(i=>fr[i]));
+ const runsAt=f=>{const out=[];let cur=[];
+  rest.filter(i=>fr[i]===f).forEach(i=>{
+   if(cur.length&&fr.slice(cur[cur.length-1]+1,i).some(x=>x>=0&&x<f)){out.push(cur);cur=[]}
+   cur.push(i)});
+  if(cur.length)out.push(cur);return out};
+ const groups=[...new Set(rest.map(i=>fr[i]))].sort((a,b)=>a-b)
+  .flatMap(f=>runsAt(f).map(s=>({f,s,merge:s.length>=3||(!hasBar&&f===lo&&s.length>1)})));
+ const attempt=()=>{
+  const units=[];
+  groups.forEach(g=>g.merge?units.push({f:g.f,s:g.s}):g.s.forEach(i=>units.push({f:g.f,s:[i]})));
+  const floor=hasBar?1:0,a=[];let prev=floor;
+  units.forEach(u=>{prev=Math.max(hasBar?u.f-base+1:u.f-lo+1,prev+1);a.push(prev)});
+  if(a.length&&a[a.length-1]>4){a[a.length-1]=4;for(let k=a.length-2;k>=0;k--)a[k]=Math.min(a[k],a[k+1]-1)}
+  if(a.length&&a[0]<=floor)return false;
+  units.forEach((u,k)=>u.s.forEach(i=>fg[i]=a[k]));return true};
+ let ok=attempt();
+ for(const g of [...groups].reverse()){if(ok)break;if(g.s.length>1&&!g.merge){g.merge=true;ok=attempt()}}
+ return fg;
+}
 function voice(){
  const t=T[st.q][st.sh],base=(st.r-SPC[st.sh]+12)%12;
- const fr=t.map(o=>o<0?-1:base+o),fg=Array(6).fill(0),idx=[];
- t.forEach((o,i)=>{if(o>=0&&fr[i]>0)idx.push(i)});
- let n=base>0?2:1;
- if(base>0)idx.filter(i=>t[i]===0).forEach(i=>fg[i]=1);
- idx.filter(i=>!(base>0&&t[i]===0)).sort((a,b)=>fr[a]-fr[b]||a-b).forEach(i=>fg[i]=n++);
- return{fr,fg,base};
+ if(base===0)return{fr:t.slice(),fg:OF[st.q][st.sh].slice(),base};
+ const tt=(TS[st.q]&&TS[st.q][st.sh])||t,fr=tt.map(o=>o<0?-1:base+o);
+ return{fr,fg:barreFingers(tt,fr,base),base};
 }
 const pcOf=(i,f)=>(OPEN[i]+f)%12;
 function lab(i,f,fg){
@@ -53,8 +88,8 @@ function diagram(v){
   const q=P(5,r+.5),n=H?[q[0],q[1]-12]:[q[0]+18,q[1]+5];
   s+=`<text class="num" x="${n[0]}" y="${n[1]}">${f}</text>`;
  }
- if(v.base>0){const b=v.fg.map((g,i)=>g===1?i:-1).filter(i=>i>=0);
-  if(b.length>1){const a=P(b[0],.5),z=P(b[b.length-1],.5);
+ for(let n=1;n<=4;n++){const b=v.fg.map((g,i)=>g===n?i:-1).filter(i=>i>=0);
+  if(b.length>1){const row=v.fr[b[0]]-start,a=P(b[0],row+.5),z=P(b[b.length-1],row+.5);
    s+=`<rect class="bar" x="${Math.min(a[0],z[0])-13}" y="${Math.min(a[1],z[1])-13}" width="${Math.abs(a[0]-z[0])+26}" height="${Math.abs(a[1]-z[1])+26}" rx="13"/>`}}
  v.fr.forEach((f,i)=>{
   if(f<0){const c=M(i,26);s+=`<text class="t" x="${c[0]}" y="${c[1]+5}">×</text>`;return}
