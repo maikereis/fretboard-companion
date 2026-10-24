@@ -293,6 +293,7 @@ document.addEventListener('click',e=>{
  if(b.id==='dgtilt'){b.setAttribute('aria-pressed',$('dgstage').classList.toggle('tilt'));return}
  if(b.id==='tilt'){b.setAttribute('aria-pressed',$('stage').classList.toggle('tilt'));return}
  if(b.id==='strum'){Sound.strum(chordMidi(),0.045);flash(0.045);return}
+ if(b.id==='od'){const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);Sound.setDrive(on?0.5:0);Sound.strum(chordMidi(),0.045);flash(0.045);return}
  if(b.id==='arp'){Sound.strum(chordMidi(),0.28);flash(0.28);return}
  if(b.id==='splay'||b.id==='sdown'){playScale(b.id==='sdown');return}
  if(b.dataset.view)st.view=b.dataset.view;
