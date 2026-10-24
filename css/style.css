@@ -639,3 +639,8 @@ details[open] summary {
 #donate {
     scroll-margin-top: 20px
 }
+/* Chord type picker: grouped, two columns */
+#quals { grid-template-columns: 1fr 1fr; }
+#quals .qgroup { grid-column: 1 / -1; margin: 8px 0 0; font-size: .8rem; font-weight: 700; color: var(--mut); text-transform: uppercase; letter-spacing: .04em; }
+#quals .qgroup:first-child { margin-top: 0; }
+#quals button { padding: 6px 10px; font-size: .92rem; }

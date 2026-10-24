@@ -41,7 +41,7 @@ It is made for:
 
 ### Understand the chord
 - The **chord formula** and what each note contributes.
-- Plain-language explanations of scales, major vs minor, 7th chords and barre chords.
+- Plain-language explanations of scales, major vs minor, 7th, sus, 6th and power chords, and barre chords.
 - **Where it lives in a key**: see which keys the chord belongs to and jump straight to its neighbours.
 
 ### Play it anywhere on the neck
@@ -53,7 +53,7 @@ It is made for:
 
 ## Chords included
 
-Major, minor, major 7, dominant 7 and minor 7, on all twelve root notes, in all five CAGED shapes.
+Major, minor, dominant 7, major 7, minor 7, suspended 2 (sus2), suspended 4 (sus4), major 6, minor 6 and power chords (5), on all twelve root notes, in all five CAGED shapes.
 
 ## Privacy
 
@@ -85,7 +85,7 @@ Thank you! Every bit of support goes toward new chord types, scales and more voi
 
 ## Roadmap
 
-- [ ] More chord types: sus, 6th and power chords
+- [x] More chord types: sus, 6th and power chords
 - [ ] Scale finder
 - [ ] Progression player
 - [ ] More voicings per chord

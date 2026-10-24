@@ -13,7 +13,7 @@ for(const q of Object.keys(T))for(const sh of ['C','A','G','E','D'])for(let r=0;
   const set=F[q].map(x=>(r+x)%12);
   fr.forEach((f,i)=>{if(f>=0&&!set.includes(pcOf(i,f)))errs.push('non-chord tone on string '+(i+1))});
   const pcs=new Set(fr.map((f,i)=>f<0?null:pcOf(i,f)).filter(x=>x!==null));
-  set.forEach(p=>{if(!pcs.has(p)&&!(q.includes('7')&&p===set[2]))errs.push('missing '+S[p])}); // 5th may be omitted only on 7ths
+  set.forEach(p=>{if(!pcs.has(p)&&!((q.includes('7')||q.includes('6'))&&p===set[2]))errs.push('missing '+S[p])}); // 5th may be omitted only on 7th and 6th chords
   fr.forEach((f,i)=>{
     if(f>0&&!fg[i])errs.push('fretted string '+(i+1)+' has no finger');
     if(f<=0&&fg[i])errs.push('unfretted string '+(i+1)+' has a finger');

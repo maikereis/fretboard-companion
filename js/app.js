@@ -5,18 +5,30 @@ const OPEN=[4,9,2,7,11,4];
 const NF=15; // frets drawn on the neck
 const MID=[40,45,50,55,59,64]; // MIDI numbers of the open strings, low E to high e
 const IV=['R','♭2','2','♭3','3','4','♭5','5','♭6','6','♭7','7'];
-const F={maj:[0,4,7],min:[0,3,7],'7':[0,4,7,10],maj7:[0,4,7,11],m7:[0,3,7,10]};
-const SUF={maj:'',min:'m','7':'7',maj7:'maj7',m7:'m7'};
-const LONG={maj:'Major',min:'Minor','7':'Dominant 7',maj7:'Major 7',m7:'Minor 7'};
+const F={maj:[0,4,7],min:[0,3,7],'7':[0,4,7,10],maj7:[0,4,7,11],m7:[0,3,7,10],sus2:[0,2,7],sus4:[0,5,7],'6':[0,4,7,9],m6:[0,3,7,9],'5':[0,7]};
+const SUF={maj:'',min:'m','7':'7',maj7:'maj7',m7:'m7',sus2:'sus2',sus4:'sus4','6':'6',m6:'m6','5':'5'};
+const LONG={maj:'Major',min:'Minor','7':'Dominant 7',maj7:'Major 7',m7:'Minor 7',sus2:'Suspended 2',sus4:'Suspended 4','6':'Major 6',m6:'Minor 6','5':'Power chord'};
 // Open-position chord of each CAGED shape (strings 6 to 1, -1 = muted). Sliding a shape up by N frets plays it N semitones higher.
 const SPC={C:0,A:9,G:7,E:4,D:2}; // pitch class of each shape
-const T={maj:{E:[0,2,2,1,0,0],A:[-1,0,2,2,2,0],C:[-1,3,2,0,1,0],G:[3,2,0,0,0,3],D:[-1,-1,0,2,3,2]},min:{E:[0,2,2,0,0,0],A:[-1,0,2,2,1,0],C:[-1,3,1,-1,1,3],G:[3,1,0,0,3,3],D:[-1,-1,0,2,3,1]},'7':{E:[0,2,0,1,0,0],A:[-1,0,2,0,2,0],C:[-1,3,2,3,1,0],G:[3,2,0,0,0,1],D:[-1,-1,0,2,1,2]},maj7:{E:[0,2,1,1,0,0],A:[-1,0,2,1,2,0],C:[-1,3,2,0,0,0],G:[3,2,0,0,0,2],D:[-1,-1,0,2,2,2]},m7:{E:[0,2,0,0,0,0],A:[-1,0,2,0,1,0],C:[-1,3,1,3,1,-1],G:[3,1,0,0,3,1],D:[-1,-1,0,2,1,1]}};
+const T={maj:{E:[0,2,2,1,0,0],A:[-1,0,2,2,2,0],C:[-1,3,2,0,1,0],G:[3,2,0,0,0,3],D:[-1,-1,0,2,3,2]},min:{E:[0,2,2,0,0,0],A:[-1,0,2,2,1,0],C:[-1,3,1,-1,1,3],G:[3,1,0,0,3,3],D:[-1,-1,0,2,3,1]},'7':{E:[0,2,0,1,0,0],A:[-1,0,2,0,2,0],C:[-1,3,2,3,1,0],G:[3,2,0,0,0,1],D:[-1,-1,0,2,1,2]},maj7:{E:[0,2,1,1,0,0],A:[-1,0,2,1,2,0],C:[-1,3,2,0,0,0],G:[3,2,0,0,0,2],D:[-1,-1,0,2,2,2]},m7:{E:[0,2,0,0,0,0],A:[-1,0,2,0,1,0],C:[-1,3,1,3,1,-1],G:[3,1,0,0,3,1],D:[-1,-1,0,2,1,1]},sus2:{E:[0,2,4,4,0,0],A:[-1,0,2,2,0,0],C:[-1,3,0,0,1,3],G:[3,0,0,0,3,3],D:[-1,-1,0,2,3,0]},sus4:{E:[0,2,2,2,0,0],A:[-1,0,2,2,3,0],C:[-1,3,3,0,1,1],G:[3,3,0,0,1,3],D:[-1,-1,0,2,3,3]},'6':{E:[0,2,2,1,2,0],A:[-1,0,2,2,2,2],C:[-1,3,2,2,1,0],G:[3,2,0,0,0,0],D:[-1,-1,0,2,0,2]},m6:{E:[0,2,2,0,2,0],A:[-1,0,2,2,1,2],C:[-1,3,1,2,1,-1],G:[3,1,0,0,3,0],D:[-1,-1,0,2,0,1]},'5':{E:[0,2,2,-1,-1,-1],A:[-1,0,2,2,-1,-1],C:[-1,3,-1,0,1,-1],G:[3,-1,0,0,-1,-1],D:[-1,-1,0,2,3,-1]}};
 const DESC={
 maj:'Bright and stable. Built from the 1st, major 3rd and 5th notes of the major scale. The sound of “home”.',
 min:'Darker, more serious. Same as major, but the 3rd is lowered one fret (a “flat 3rd”).',
 '7':'A major chord plus a flat 7th. It has tension and wants to resolve, which is why it is everywhere in blues and rock.',
 maj7:'A major chord plus the 7th note of the scale, one fret below the root’s octave. Soft, dreamy, jazzy.',
-m7:'A minor chord plus a flat 7th. Warm and relaxed, common in soul, funk and jazz.'};
+m7:'A minor chord plus a flat 7th. Warm and relaxed, common in soul, funk and jazz.',
+sus2:'Open and unresolved. The 3rd is replaced by the 2nd (2 frets above the root), so the chord is neither major nor minor. It often resolves to the plain major or minor chord.',
+sus4:'Tense and expectant. The 3rd is replaced by the 4th (5 frets above the root), which “wants” to fall back to the 3rd. A staple of rock, pop and folk.',
+'6':'A major chord plus the 6th note of the scale (9 frets above the root). Warm and relaxed, with an old-fashioned, jazzy flavour.',
+m6:'A minor chord plus the major 6th. Moody but smooth, with a jazz and bossa nova flavour.',
+'5':'Just the root and the 5th, with no 3rd. It is neither major nor minor, so it sounds strong and neutral. The foundation of rock and metal guitar.'};
+// Why some chords have no single place in a major key (shown instead of the key list).
+const NOKEY={
+sus2:'Suspended chords have no 3rd, so they are neither major nor minor. They usually stand in for a major or minor chord with the same root and then resolve back to it, so they do not have one fixed place in a key.',
+sus4:'Suspended chords have no 3rd, so they are neither major nor minor. They usually stand in for a major or minor chord with the same root and then resolve back to it, so they do not have one fixed place in a key.',
+'6':'A 6th chord is often used instead of a plain major or maj7 chord as the “home” (I) chord, especially in jazz, country and swing. It has the same notes as a minor 7th chord built a minor 3rd lower: C6 and Am7 share C, E, G and A.',
+m6:'A minor 6th chord is often used as the minor “home” chord in jazz and bossa nova. It has the same notes as a minor 7♭5 chord built a minor 3rd higher: Am6 and F♯m7♭5 share A, C, E and F♯.',
+'5':'A power chord has only the root and the 5th, so it is neither major nor minor. That is why it can replace either one with the same root, and why it stays clear under heavy distortion.'};
 const DEG=[0,2,4,5,7,9,11],TQ=['maj','min','min','maj','maj','min','dim'],SQ=['maj7','m7','m7','maj7','7','m7','m7b5'];
 const RN=['I','ii','iii','IV','V','vi','vii°'],RN7=['Imaj7','iim7','iiim7','IVmaj7','V7','vim7','viiø7'];
 const st={r:7,q:'maj',sh:'E',mode:'fingers',rot:false};
@@ -29,7 +41,7 @@ maj:{E:[0,2,3,1,0,0],A:[0,0,1,2,3,0],C:[0,3,2,0,1,0],G:[2,1,0,0,0,3],D:[0,0,0,1,
 min:{E:[0,1,2,0,0,0],A:[0,0,2,3,1,0],C:[0,3,1,0,1,4],G:[2,1,0,0,3,4],D:[0,0,0,2,3,1]},
 '7':{E:[0,2,0,1,0,0],A:[0,0,1,0,2,0],C:[0,3,2,4,1,0],G:[3,2,0,0,0,1],D:[0,0,0,2,1,3]},
 maj7:{E:[0,3,1,2,0,0],A:[0,0,2,1,3,0],C:[0,3,2,0,0,0],G:[3,1,0,0,0,2],D:[0,0,0,1,2,3]},
-m7:{E:[0,1,0,0,0,0],A:[0,0,2,0,1,0],C:[0,3,1,4,1,0],G:[3,1,0,0,4,2],D:[0,0,0,2,1,1]}};
+m7:{E:[0,1,0,0,0,0],A:[0,0,2,0,1,0],C:[0,3,1,4,1,0],G:[3,1,0,0,4,2],D:[0,0,0,2,1,1]},sus2:{E:[0,1,3,4,0,0],A:[0,0,1,2,0,0],C:[0,3,0,0,1,4],G:[2,0,0,0,3,4],D:[0,0,0,1,2,0]},sus4:{E:[0,2,3,4,0,0],A:[0,0,1,2,3,0],C:[0,3,4,0,1,1],G:[2,3,0,0,1,4],D:[0,0,0,1,3,4]},'6':{E:[0,2,3,1,4,0],A:[0,0,1,1,1,1],C:[0,4,2,3,1,0],G:[3,2,0,0,0,0],D:[0,0,0,1,0,2]},m6:{E:[0,1,2,0,3,0],A:[0,0,2,3,1,4],C:[0,4,1,2,1,0],G:[3,1,0,0,4,0],D:[0,0,0,2,0,1]},'5':{E:[0,1,2,0,0,0],A:[0,0,1,2,0,0],C:[0,3,0,0,1,0],G:[3,0,0,0,0,0],D:[0,0,0,1,2,0]}};
 // Two shapes need a string muted once they slide up the neck, because the open string would need a 5th finger.
 const TS={'7':{C:[-1,3,2,3,1,-1]},m7:{G:[3,1,0,0,-1,1]}};
 // Fingering for a shape slid up the neck (base > 0). Open strings of the template become the index-finger barre.
@@ -122,12 +134,13 @@ function theory(){
  const fl=flatR(st.r),notes=F[st.q].map(x=>(st.r+x)%12);
  return `<p>${DESC[st.q]}</p><p>Formula (frets above the root): <b>${F[st.q].join(' · ')}</b>. Notes in <b>${nm(st.r,fl)}${SUF[st.q]}</b>:</p>`+
  notes.map((p,i)=>`<span class="chip${i?'':' r'}"><b>${nm(p,fl)}</b> <small>${IV[(p-st.r+12)%12]}</small></span>`).join('')+
- `<p style="color:var(--mut);font-size:.9rem">The small label under each note says how it relates to the root: R is the root, 3 is the third, 5 is the fifth, ♭ means lowered by one fret. Only the 3rd and 7th change between these chord types.</p>`;
+ `<p style="color:var(--mut);font-size:.9rem">The small label under each note says how it relates to the root: R is the root, 3 is the third, 5 is the fifth, ♭ means lowered by one fret. The 3rd decides major or minor; the 2nd, 4th, 6th and 7th add colour.</p>`;
 }
 function fits(){
  const sev=['7','maj7','m7'].includes(st.q),L=sev?SQ:TQ,R=sev?RN7:RN,out=[];
  for(let k=0;k<12;k++)for(let d=0;d<7;d++)if((k+DEG[d])%12===st.r&&L[d]===st.q)out.push(`<span class="chip"><b>${nm(k,flatR(k))} major</b>: ${R[d]}</span>`);
  const nme=nm(st.r,flatR(st.r))+SUF[st.q];
+ if(!out.length&&NOKEY[st.q])return `<p><b>${nme}</b>: ${NOKEY[st.q]}</p>`;
  return `<p><b>${nme}</b> is a natural fit in these major keys (with its position in the key):</p>${out.join('')}`;
 }
 function keyrow(){
@@ -151,7 +164,8 @@ function render(){
  document.querySelectorAll('#shapes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===st.sh));
 }
 $('roots').innerHTML=S.map((n,i)=>`<button data-r="${i}">${[1,3,6,8,10].includes(i)?n.replace('#','♯')+'/'+FL[i].replace('b','♭'):n}</button>`).join('');
-$('quals').innerHTML=Object.keys(F).map(q=>`<button data-q="${q}">${LONG[q]}</button>`).join('');
+const QGROUPS=[['Triads',['maj','min']],['Seventh chords',['7','maj7','m7']],['Suspended, 6th and power',['sus2','sus4','6','m6','5']]];
+$('quals').innerHTML=QGROUPS.map(([t,qs])=>`<p class="qgroup">${t}</p>`+qs.map(q=>`<button data-q="${q}">${LONG[q]}</button>`).join('')).join('');
 $('modes').innerHTML=[['fingers','Fingers'],['notes','Notes'],['intervals','Intervals']].map(([m,l])=>`<button data-m="${m}">${l}</button>`).join(' ');
 $('shapes').innerHTML=['C','A','G','E','D'].map(k=>`<button data-s="${k}" title="${k} shape">${k}</button>`).join(' ');
 const chordMidi=()=>voice().fr.map((f,i)=>f<0?null:MID[i]+f).filter(m=>m!==null);
