@@ -1,0 +1,5 @@
+# Shows a "Sponsor" button on the repository page.
+github: [maikereis]
+# Pix has no payment link, so point to the donate section of the site.
+# Change "fretboard-companion" if your repository has a different name.
+custom: ["https://maikereis.github.io/fretboard-companion/#donate"]

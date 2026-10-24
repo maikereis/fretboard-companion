@@ -1,0 +1,7 @@
+# Every change needs the owner's review. The donation-related files are listed
+# explicitly too, so they stay protected if the first line is ever narrowed.
+*                  @maikereis
+/js/config.js      @maikereis
+/js/donate.js      @maikereis
+/img/qr-pix.png    @maikereis
+/.github/          @maikereis
