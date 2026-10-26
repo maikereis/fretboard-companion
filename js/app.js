@@ -31,7 +31,7 @@ m6:'A minor 6th chord is often used as the minor “home” chord in jazz and bo
 '5':'A power chord has only the root and the 5th, so it is neither major nor minor. That is why it can replace either one with the same root, and why it stays clear under heavy distortion.'};
 const DEG=[0,2,4,5,7,9,11],TQ=['maj','min','min','maj','maj','min','dim'],SQ=['maj7','m7','m7','maj7','7','m7','m7b5'];
 const RN=['I','ii','iii','IV','V','vi','vii°'],RN7=['Imaj7','iim7','iiim7','IVmaj7','V7','vim7','viiø7'];
-const st={r:7,q:'maj',sh:'E',mode:'fingers',rot:false,view:'chord',sc:'major',pos:0};
+const st={r:7,q:'maj',sh:'E',mode:'fingers',rot:false,view:'chord',sc:'major',pos:0,vmode:'caged',vsize:'all',vinv:false,gk:'',gb:0};
 const $=id=>document.getElementById(id);
 
 // Fingers (1 = index, 2 = middle, 3 = ring, 4 = pinky) for the open-position version of each shape, strings 6 to 1.
@@ -83,6 +83,54 @@ function lab(i,f,fg){
  if(st.mode==='fingers')return fg||'';
  const pc=pcOf(i,f);
  return st.mode==='notes'?nm(pc,flatR(st.r)):IV[(pc-st.r+12)%12];
+}
+// ---------- More voicings: generated, not hand-written ----------
+// A voicing is any way to play the chord that (1) uses only chord tones and all the needed ones, (2) fits a 4-fret window,
+// (3) leaves no muted string between played strings, and (4) can be fingered with four fingers (barres and mini-barres allowed).
+// Open strings are allowed when everything stays within the first five frets.
+function assignFingers(fr){
+ const fs=[];fr.forEach((f,i)=>{if(f>0)fs.push(i)});
+ if(!fs.length)return fr.map(()=>0);
+ const lo=Math.min(...fs.map(i=>fr[i])),frets=[...new Set(fs.map(i=>fr[i]))].sort((a,b)=>a-b);
+ // a finger can lie flat across strings a..b at fret f only if every string in between is pressed at f or higher
+ const run=f=>{const ix=fs.filter(i=>fr[i]===f);return ix.length>1&&fr.slice(ix[0],ix[ix.length-1]+1).every(x=>x>=f)?ix:null};
+ for(const plan of [0,1,2]){ // 0: one finger per note, 1: barre on the lowest fret, 2: barre and mini-barres anywhere
+  const groups=[],used=new Set();
+  for(const f of frets){const ix=plan===0||(plan===1&&f!==lo)?null:run(f);if(ix){groups.push({f,s:ix});ix.forEach(i=>used.add(i))}}
+  fs.forEach(i=>{if(!used.has(i))groups.push({f:fr[i],s:[i]})});
+  if(groups.length>4)continue;
+  groups.sort((a,b)=>a.f-b.f||a.s[0]-b.s[0]);
+  const fg=fr.map(()=>0);groups.forEach((g,k)=>g.s.forEach(i=>fg[i]=k+1));return fg;
+ }
+ return null;
+}
+const _gv={};
+function genVoicings(r,q){
+ const k=r+'|'+q;if(_gv[k])return _gv[k];
+ const tones=F[q].map(x=>(r+x)%12),opt=(q.includes('7')||q.includes('6'))&&tones.length>3?tones[2]:-1; // 7th and 6th chords may leave out the 5th
+ const need=tones.filter(p=>p!==opt),minS=q==='5'?2:3,out=new Map();
+ const leaf=fr=>{
+  if(fr.filter(f=>f>=0).length<minS)return;
+  const pcs=new Set(fr.map((f,i)=>f<0?-1:pcOf(i,f)));if(!need.every(p=>pcs.has(p)))return;
+  const fretted=fr.filter(f=>f>0),open=fr.includes(0);
+  if(open&&Math.max(0,...fretted)>5)return;
+  const key=fr.join(',');if(out.has(key))return;
+  const fg=assignFingers(fr);if(!fg)return;
+  const b=fr.findIndex(f=>f>=0),bass=IV[(pcOf(b,fr[b])-r+12)%12];
+  out.set(key,{key,fr:fr.slice(),fg,base:open||!fretted.length?0:Math.min(...fretted),n:fr.filter(f=>f>=0).length,bass,inv:bass==='R'?0:1});
+ };
+ for(let w=1;w<=NF-3;w++){
+  const opts=[0,1,2,3,4,5].map(i=>{const o=[-1];if(tones.includes(pcOf(i,0)))o.push(0);for(let f=w;f<w+4;f++)if(tones.includes(pcOf(i,f)))o.push(f);return o});
+  const fr=[];
+  (function go(i,ph){ // ph 0: leading mutes, 1: playing, 2: trailing mutes
+   if(i===6){leaf(fr);return}
+   for(const f of opts[i]){
+    if(f<0){fr.push(f);go(i+1,ph===1?2:ph);fr.pop()}
+    else if(ph<2){fr.push(f);go(i+1,1);fr.pop()}
+   }
+  })(0,0);
+ }
+ return _gv[k]=[...out.values()].sort((a,b)=>a.base-b.base||b.n-a.n||a.inv-b.inv||a.key.localeCompare(b.key));
 }
 // ---------- Scales ----------
 // iv = frets above the root, d = degree labels, core = notes that define the boxes (blues = minor pentatonic + blue note).
@@ -313,6 +361,34 @@ function renderProg(){
  $('ploop').setAttribute('aria-pressed',pr.loop);$('pclick').setAttribute('aria-pressed',pr.click);
  if(pr.playing)paintBeat(pBeat>0?(pBeat-1)%pr.beats:0);
 }
+// ---------- Voicing picker (chord view) ----------
+const voicingList=()=>genVoicings(st.r,st.q).filter(v=>(st.vinv||!v.inv)&&(st.vsize==='all'||(st.vsize==='full'?v.n>=5:st.vsize==='four'?v.n===4:v.n<=3)));
+function curVoice(){ // the voicing on screen: a generated one if picked, otherwise the CAGED shape
+ if(st.view!=='chord'||st.vmode!=='all')return voice();
+ const L=voicingList();if(!L.length)return voice();
+ let v=L.find(x=>x.key===st.gk);
+ if(!v){v=L.reduce((a,b)=>Math.abs(b.base-st.gb)<Math.abs(a.base-st.gb)?b:a);st.gk=v.key} // new chord: stay near the same spot on the neck
+ st.gb=v.base;return v;
+}
+function thumb(v,sel){
+ const b=v.base>0?v.base:1,rows=v.base>0?4:5,x0=9,sx=9,y0=17,sy=11,tab=v.fr.map(f=>f<0?'x':f).join(v.fr.some(f=>f>9)?'-':'');
+ let s=`<svg class="tb" viewBox="0 0 76 ${y0+rows*sy+5}" aria-hidden="true">`;
+ for(let j=0;j<=rows;j++)s+=`<line class="${j===0&&b===1?'nut':''}" x1="${x0}" x2="${x0+5*sx}" y1="${y0+j*sy}" y2="${y0+j*sy}"/>`;
+ for(let i=0;i<6;i++)s+=`<line x1="${x0+i*sx}" x2="${x0+i*sx}" y1="${y0}" y2="${y0+rows*sy}"/>`;
+ if(b>1)s+=`<text x="${x0+5*sx+11}" y="${y0+8}">${b}</text>`;
+ v.fr.forEach((f,i)=>{const x=x0+i*sx,isR=pcOf(i,f)===st.r;
+  if(f<0)s+=`<text x="${x}" y="${y0-6}">×</text>`;
+  else if(f===0)s+=`<circle class="op${isR?' r':''}" cx="${x}" cy="${y0-8}" r="3"/>`;
+  else s+=`<circle class="${isR?'r':''}" cx="${x}" cy="${y0+(f-b+.5)*sy}" r="4"/>`});
+ return`<button class="vthumb" data-gv="${v.key}" aria-pressed="${sel}" title="${tab}${v.inv?' · '+v.bass+' in the bass':''}">${s}</svg><small>${tab}</small></button>`;
+}
+function renderVoicings(){
+ const L=voicingList(),all=genVoicings(st.r,st.q),cur=st.vmode==='all'?curVoice():null;
+ $('vinfo').textContent=`${L.length} shown, ${all.length} in total`;
+ $('vgrid').innerHTML=L.length?L.map(v=>thumb(v,!!cur&&cur.key===v.key)).join(''):'<p class="hint">No voicings match. Try “All sizes” or include inversions.</p>';
+ document.querySelectorAll('#vsize button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.vsize===st.vsize));
+ $('vinv').setAttribute('aria-pressed',st.vinv);
+}
 function renderView(){
  const v=st.view,sc=v==='scale';
  document.querySelectorAll('.chordonly').forEach(e=>e.hidden=v!=='chord');
@@ -326,12 +402,13 @@ function renderView(){
  document.querySelectorAll('#views button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.view===v));
  if(sc)renderScale();
  if(v==='prog')renderProg();
+ if(v==='chord')renderVoicings();
 }
 function render(){
- const v=voice(),fl=flatR(st.r);
+ const v=curVoice(),fl=flatR(st.r);
  $('cname').innerHTML=nm(st.r,fl)+SUF[st.q]+'<small>'+LONG[st.q]+'</small>';
  $('dg').innerHTML=diagram(v);
- $('vnote').textContent=(v.base===0?'Open position':'Barre at fret '+v.base)+' · '+st.sh+' shape'+(st.mode==='fingers'?' · numbers are fingers (1 = index)':st.mode==='notes'?' · note names':' · distance from the root');
+ $('vnote').textContent=(v.key?(v.base===0?'Open position':'Fret '+v.base)+' · '+(v.bass==='R'?'root in the bass':v.bass+' in the bass (inversion)'):(v.base===0?'Open position':'Barre at fret '+v.base)+' · '+st.sh+' shape')+(st.mode==='fingers'?' · numbers are fingers (1 = index)':st.mode==='notes'?' · note names':' · distance from the root');
  $('neck').innerHTML=neck(v);
  $('tones').innerHTML='';
  renderView();
@@ -339,7 +416,7 @@ function render(){
  document.querySelectorAll('#roots button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.r===(st.view==='prog'?pr.key:st.r)));
  document.querySelectorAll('#quals button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.q===st.q));
  document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===(st.view==='scale'&&st.mode==='fingers'?'notes':st.mode)));
- document.querySelectorAll('#shapes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===st.sh));
+ document.querySelectorAll('#shapes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===st.sh&&st.vmode==='caged'));
 }
 $('roots').innerHTML=S.map((n,i)=>`<button data-r="${i}">${[1,3,6,8,10].includes(i)?n.replace('#','♯')+'/'+FL[i].replace('b','♭'):n}</button>`).join('');
 const QGROUPS=[['Triads',['maj','min']],['Seventh chords',['7','maj7','m7']],['Suspended, 6th and power',['sus2','sus4','6','m6','5']]];
@@ -358,7 +435,8 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)pStop()});
 document.addEventListener('keydown',e=>{ // Space = play / stop in the progression view
  if(e.code==='Space'&&st.view==='prog'&&!e.target.closest('button,input,select,textarea,[data-midi]')){e.preventDefault();pr.playing?pStop():pStart()}
 });
-const chordMidi=()=>voice().fr.map((f,i)=>f<0?null:MID[i]+f).filter(m=>m!==null);
+$('vsize').innerHTML=[['all','All sizes'],['full','5–6 strings'],['four','4 strings'],['three','3 or fewer']].map(([k,l])=>`<button data-vsize="${k}">${l}</button>`).join(' ');
+const chordMidi=()=>curVoice().fr.map((f,i)=>f<0?null:MID[i]+f).filter(m=>m!==null);
 // Notes light up in place (ripple + pop) in the order they sound; they never move.
 function flash(gap){
  const g=[...document.querySelectorAll('.nd.vv')];
@@ -383,6 +461,9 @@ document.addEventListener('click',e=>{
  if(b.id==='od'){const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);Sound.setDrive(on?0.5:0);Sound.strum(chordMidi(),0.045);flash(0.045);return}
  if(b.id==='arp'){Sound.strum(chordMidi(),0.28);flash(0.28);return}
  if(b.id==='splay'||b.id==='sdown'){playScale(b.id==='sdown');return}
+ if(b.dataset.gv!==undefined){st.vmode='all';st.gk=b.dataset.gv;render();Sound.strum(chordMidi(),0.045);flash(0.045);return}
+ if(b.dataset.vsize){st.vsize=b.dataset.vsize;render();return}
+ if(b.id==='vinv'){st.vinv=!st.vinv;render();return}
  if(b.dataset.slot!==undefined){if(!pr.playing){pr.sel=+b.dataset.slot;showSlot(pr.sel)}return}
  if(b.dataset.padd){const[o,q]=b.dataset.padd.split(',');pAdd(+o,q);return}
  if(b.id==='pplay'){pr.playing?pStop():pStart();return}
@@ -401,7 +482,7 @@ document.addEventListener('click',e=>{
  if(b.dataset.r!==undefined){if(st.view==='prog'&&b.closest('#roots')){pr.key=+b.dataset.r;pEdited();return}st.r=+b.dataset.r}
  if(b.dataset.q)st.q=b.dataset.q;
  if(b.dataset.m)st.mode=b.dataset.m;
- if(b.dataset.s!==undefined)st.sh=b.dataset.s;
+ if(b.dataset.s!==undefined){st.sh=b.dataset.s;st.vmode='caged'}
  render();
 });
 render();

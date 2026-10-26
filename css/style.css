@@ -670,3 +670,18 @@ details[open] summary {
 .bpm input { width: min(220px, 40vw); accent-color: var(--acc); }
 #presets button { text-align: left; }
 .prog-card h2.pal { margin: 16px 0 0; }
+
+/* More voicings */
+.vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin: 10px 0 6px; max-height: 420px; overflow-y: auto; padding: 4px; }
+.vthumb { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px 4px; border-radius: 14px; min-height: 0; }
+.vthumb small { font-size: .72rem; color: var(--mut); letter-spacing: .02em; }
+.vthumb[aria-pressed="true"] { background: var(--card); color: var(--fg); border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc); }
+.vthumb[aria-pressed="true"] small { color: var(--fg); }
+.tb { width: 100%; max-width: 72px; display: block; }
+.tb line { stroke: var(--mut); stroke-width: 1; }
+.tb line.nut { stroke: var(--fg); stroke-width: 3; }
+.tb circle { fill: var(--acc); }
+.tb circle.r { fill: var(--root); }
+.tb circle.op { fill: none; stroke: var(--mut); stroke-width: 1.3; }
+.tb circle.op.r { stroke: var(--root); }
+.tb text { fill: var(--mut); font: 700 9px ui-rounded, sans-serif; text-anchor: middle; }

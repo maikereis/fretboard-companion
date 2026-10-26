@@ -29,6 +29,12 @@
     <div class="row"><button id="strum" class="go">▶ Strum</button><button id="arp">Arpeggio</button><button id="od" aria-pressed="false" title="Distorted amp sound">⚡Overdrive</button></div>
     <p class="hint">Fingers: 1 index, 2 middle, 3 ring, 4 pinky.</p><div id="tones"></div></div>
   </section>
+  <section class="card voicings chordonly" aria-label="More voicings">
+   <div class="bar"><h2>More voicings</h2><span id="vinfo" class="hint"></span></div>
+   <div class="row"><div class="seg" id="vsize"></div><button id="vinv" aria-pressed="false" title="An inversion has the 3rd or 5th as the lowest note instead of the root">Include inversions</button></div>
+   <div class="vgrid" id="vgrid"></div>
+   <p class="hint">Each picture is another way to play the same chord, listed from the nut up the neck. Tap one to see it on the neck and hear it; the numbers under it are the frets from the thickest string to the thinnest (x = muted). Pick a letter under Shape to go back to the five classic shapes.</p>
+  </section>
   <section class="card prog-card progonly" aria-label="Progression player">
    <div class="bar"><h2>Progression</h2><span id="pinfo" class="hint"></span></div>
    <div class="slots" id="slots"></div><div class="beats" id="beats" aria-hidden="true"></div>
@@ -60,6 +66,7 @@
   <p><b>Major vs minor</b>: only the 3rd note changes. Major has a 3rd that is 4 frets above the root (bright). Minor has it 3 frets above (darker).</p>
   <p><b>7th chords</b>: add a 4th note on top. <i>Major 7</i> adds a note 11 frets above the root (dreamy, jazzy). <i>Dominant 7</i> (just “7”) adds a note 10 frets above, on a major chord (bluesy, wants to move to another chord). <i>Minor 7</i> adds that same 10-fret note to a minor chord (smooth, mellow).</p>
   <p><b>Sus, 6th and power chords</b>: a <i>sus2</i> or <i>sus4</i> chord swaps the 3rd for the 2nd or 4th, so it is neither major nor minor and feels unresolved. A <i>6th</i> chord adds the 6th note of the scale for a smooth, jazzy colour. A <i>power chord</i> is only the root and the 5th, with no 3rd, so it sounds strong and works over major or minor.</p>
+  <p><b>Voicings</b>: the same chord can be played in many ways. A <i>voicing</i> is one choice of which strings to play and which frets to press. Shapes with fewer strings are easier and cleaner; a voicing with the 3rd or 5th as its lowest note is called an <i>inversion</i> and sounds a little lighter than one with the root in the bass.</p>
   <p><b>Progressions</b>: a chord progression is a list of chords played one after another, usually repeating. Roman numerals name each chord by its place in the key, so I–V–vi–IV works in any key. In G it is G–D–Em–C, in C it is C–G–Am–F. Pick a key, choose a preset or build your own, and set the tempo.</p>
   <p><b>Scales on the neck</b>: a <i>pentatonic</i> scale has five notes and is the easiest place to start soloing. The <i>blues</i> scale adds one “blue note”. The <i>modes</i> (dorian, lydian…) are the major scale started from a different note, so each has its own mood. Use the <b>Positions</b> to learn the neck one box at a time, then join the boxes together.</p>
   <p><b>Barre chords</b>: when the shape slides up the neck, one finger (usually the index) lays across the strings. Moving the same shape up one fret raises the chord one semitone.</p></details>
