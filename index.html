@@ -19,15 +19,25 @@
     <div class="seg" id="modes"></div>
     <button id="tilt" aria-pressed="false">Tilt view</button></div>
    <div class="stage" id="stage"><div class="neckw" id="neck"></div></div>
-   <p class="hint chordonly">Tap any note to hear it. Bright dots are the chord shape; faded dots are the same notes elsewhere on the neck. Orange is the root. The thickest string is at the bottom, like looking down at your own guitar.</p>
+   <p class="hint chordprog">Tap any note to hear it. Bright dots are the chord shape; faded dots are the same notes elsewhere on the neck. Orange is the root. The thickest string is at the bottom, like looking down at your own guitar.</p>
    <p class="hint scaleonly">Tap any note to hear it. Bright dots are the notes of the scale (or of the position you picked); faded dots are the rest. Orange is the root. The thickest string is at the bottom, like looking down at your own guitar.</p>
   </section>
-  <section class="card chord-card chordonly" aria-label="Active chord">
+  <section class="card chord-card chordprog" aria-label="Active chord">
    <div class="dgcol"><div class="stage" id="dgstage"><div class="neckw" id="dg"></div></div>
     <div class="row dgbar"><button id="rot" aria-pressed="false">↻ Rotate</button><button id="dgtilt" aria-pressed="false">Tilt</button></div></div>
    <div class="chordtxt"><div id="cname" class="cname"></div><p id="vnote" class="vnote"></p>
     <div class="row"><button id="strum" class="go">▶ Strum</button><button id="arp">Arpeggio</button><button id="od" aria-pressed="false" title="Distorted amp sound">⚡Overdrive</button></div>
     <p class="hint">Fingers: 1 index, 2 middle, 3 ring, 4 pinky.</p><div id="tones"></div></div>
+  </section>
+  <section class="card prog-card progonly" aria-label="Progression player">
+   <div class="bar"><h2>Progression</h2><span id="pinfo" class="hint"></span></div>
+   <div class="slots" id="slots"></div><div class="beats" id="beats" aria-hidden="true"></div>
+   <div class="row"><button id="pplay" class="go">▶ Play</button><button id="ploop" aria-pressed="true">⟳ Loop</button><button id="pclick" aria-pressed="true">Click</button>
+    <label class="bpm">Tempo <input type="range" id="bpm" min="40" max="200" value="90" aria-label="Tempo in beats per minute"> <b id="bpmv">90</b> BPM</label></div>
+   <div class="row"><span class="hint">Playing style</span><div class="seg" id="pstyle"></div><span class="hint">Beats per chord</span><div class="seg" id="pbeats"></div></div>
+   <h2 class="pal">Add a chord</h2><div class="row"><div class="seg" id="pflav"></div></div><div class="keyrow" id="ppal"></div>
+   <div class="row"><button id="pdel">Remove selected</button><button id="pclear">Clear all</button></div>
+   <p class="hint">Tip: press the space bar to play or stop. The player picks the hand positions for you so the hand travels as little as possible. Turn on ⚡Overdrive to hear it with a rock amp.</p>
   </section>
   <div class="learn chordonly">
    <div class="card"><h2>What is this chord made of?</h2><div id="theory"></div></div>
@@ -50,15 +60,18 @@
   <p><b>Major vs minor</b>: only the 3rd note changes. Major has a 3rd that is 4 frets above the root (bright). Minor has it 3 frets above (darker).</p>
   <p><b>7th chords</b>: add a 4th note on top. <i>Major 7</i> adds a note 11 frets above the root (dreamy, jazzy). <i>Dominant 7</i> (just “7”) adds a note 10 frets above, on a major chord (bluesy, wants to move to another chord). <i>Minor 7</i> adds that same 10-fret note to a minor chord (smooth, mellow).</p>
   <p><b>Sus, 6th and power chords</b>: a <i>sus2</i> or <i>sus4</i> chord swaps the 3rd for the 2nd or 4th, so it is neither major nor minor and feels unresolved. A <i>6th</i> chord adds the 6th note of the scale for a smooth, jazzy colour. A <i>power chord</i> is only the root and the 5th, with no 3rd, so it sounds strong and works over major or minor.</p>
+  <p><b>Progressions</b>: a chord progression is a list of chords played one after another, usually repeating. Roman numerals name each chord by its place in the key, so I–V–vi–IV works in any key. In G it is G–D–Em–C, in C it is C–G–Am–F. Pick a key, choose a preset or build your own, and set the tempo.</p>
   <p><b>Scales on the neck</b>: a <i>pentatonic</i> scale has five notes and is the easiest place to start soloing. The <i>blues</i> scale adds one “blue note”. The <i>modes</i> (dorian, lydian…) are the major scale started from a different note, so each has its own mood. Use the <b>Positions</b> to learn the neck one box at a time, then join the boxes together.</p>
   <p><b>Barre chords</b>: when the shape slides up the neck, one finger (usually the index) lays across the strings. Moving the same shape up one fret raises the chord one semitone.</p></details>
  </main>
  <aside class="side card" aria-label="Picker">
   <div class="seg" id="views" role="group" aria-label="Chords or scales"></div>
-  <h2>Root note</h2><div class="pick g3" id="roots"></div>
+  <h2 id="rootlbl">Root note</h2><div class="pick g3" id="roots"></div>
   <h2 class="chordonly">Chord type</h2><div class="pick chordonly" id="quals"></div>
   <h2 class="chordonly">Shape (CAGED)</h2><div class="seg chordonly" id="shapes"></div>
   <p class="hint chordonly">The same chord can be played in five places on the neck. Each shape is named after the open chord it comes from.</p>
+  <h2 class="progonly">Key mode</h2><div class="seg progonly" id="pmodes"></div>
+  <h2 class="progonly">Presets</h2><div class="pick progonly" id="presets"></div>
   <h2 class="scaleonly">Scale</h2><div class="pick scaleonly" id="scales"></div>
   <h2 class="scaleonly">Position</h2><div class="pick g4 scaleonly" id="positions"></div>
  </aside>

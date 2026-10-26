@@ -72,10 +72,10 @@ function barreFingers(t,fr,base){
  for(const g of [...groups].reverse()){if(ok)break;if(g.s.length>1&&!g.merge){g.merge=true;ok=attempt()}}
  return fg;
 }
-function voice(){
- const t=T[st.q][st.sh],base=(st.r-SPC[st.sh]+12)%12;
- if(base===0)return{fr:t.slice(),fg:OF[st.q][st.sh].slice(),base};
- const tt=(TS[st.q]&&TS[st.q][st.sh])||t,fr=tt.map(o=>o<0?-1:base+o);
+function voice(r=st.r,q=st.q,sh=st.sh){
+ const t=T[q][sh],base=(r-SPC[sh]+12)%12;
+ if(base===0)return{fr:t.slice(),fg:OF[q][sh].slice(),base};
+ const tt=(TS[q]&&TS[q][sh])||t,fr=tt.map(o=>o<0?-1:base+o);
  return{fr,fg:barreFingers(tt,fr,base),base};
 }
 const pcOf=(i,f)=>(OPEN[i]+f)%12;
@@ -240,15 +240,92 @@ function renderScale(){
   ?`<p>Stack every other note of the scale to get one chord per note. Tap a chord to see it.</p><p class="hint">Triads</p><div class="keyrow">${scaleChords(false).map(btn).join('')}</div><p class="hint">7th chords</p><div class="keyrow">${scaleChords(true).map(btn).join('')}</div>`
   :`<p>${S.n} is usually played over chords on the same root. Tap one to see it.</p><div class="keyrow">${S.on.map(q=>btn({r:st.r,q,name:nm(st.r,fl)+SUF[q],rn:LONG[q]})).join('')}</div>`;
 }
+// ---------- Progression player ----------
+// A progression is a list of slots {off, q}: semitones above the key's tonic + chord type, so changing the key transposes it.
+const PRESETS=[
+ {n:'Pop: I–V–vi–IV',mode:'major',s:[[0,'maj'],[7,'maj'],[9,'min'],[5,'maj']]},
+ {n:'Classic: I–vi–IV–V',mode:'major',s:[[0,'maj'],[9,'min'],[5,'maj'],[7,'maj']]},
+ {n:'Three chords: I–IV–V–I',mode:'major',s:[[0,'maj'],[5,'maj'],[7,'maj'],[0,'maj']]},
+ {n:'Canon: I–V–vi–iii–IV–I–IV–V',mode:'major',s:[[0,'maj'],[7,'maj'],[9,'min'],[4,'min'],[5,'maj'],[0,'maj'],[5,'maj'],[7,'maj']]},
+ {n:'Jazz: ii–V–I',mode:'major',s:[[2,'m7'],[7,'7'],[0,'maj7']]},
+ {n:'12-bar blues',mode:'major',s:[[0,'7'],[0,'7'],[0,'7'],[0,'7'],[5,'7'],[5,'7'],[0,'7'],[0,'7'],[7,'7'],[5,'7'],[0,'7'],[7,'7']]},
+ {n:'Minor: i–VI–III–VII',mode:'minor',s:[[0,'min'],[8,'maj'],[3,'maj'],[10,'maj']]},
+ {n:'Andalusian: i–VII–VI–V',mode:'minor',s:[[0,'min'],[10,'maj'],[8,'maj'],[7,'maj']]}];
+const RNT={ // Roman numeral base per semitone offset, for a major or a minor key
+ major:[['','I'],['♭','II'],['','II'],['♭','III'],['','III'],['','IV'],['♯','IV'],['','V'],['♭','VI'],['','VI'],['♭','VII'],['','VII']],
+ minor:[['','I'],['♭','II'],['','II'],['','III'],['♯','III'],['','IV'],['♯','IV'],['','V'],['','VI'],['♯','VI'],['','VII'],['♯','VII']]};
+const pr={key:7,mode:'major',flavor:'triad',slots:[],bpm:90,beats:4,style:'once',loop:true,click:true,playing:false,sel:0,cur:-1,vo:[],started:false};
+const pFl=()=>flatR((pr.key+(pr.mode==='minor'?3:0))%12); // spell notes by the key signature
+const pRoman=(off,q)=>{const[a,n]=RNT[pr.mode][off];return a+(['min','m7','m6'].includes(q)?n.toLowerCase():n)+(q==='maj'||q==='min'?'':SUF[q])};
+const pChord=s=>{const r=(pr.key+s.off)%12;return{r,name:nm(r,pFl())+SUF[s.q],rn:pRoman(s.off,s.q)}};
+function pPalette(){ // chords you can add: the key's own chords (triads or 7ths), or the three dominant 7ths for blues
+ const fl=pFl(),mk=(off,q)=>({off,q,name:nm((pr.key+off)%12,fl)+SUF[q],rn:pRoman(off,q)});
+ if(pr.flavor==='dom')return[0,5,7].map(o=>mk(o,'7'));
+ const iv=SCALES[pr.mode].iv,seven=pr.flavor==='seventh';
+ return iv.map((x,k)=>{
+  const at=j=>(iv[(k+j)%7]-x+12)%12,a=[0,at(2),at(4)];if(seven)a.push(at(6));
+  const key=a.join(','),q=['maj','min','7','maj7','m7'].find(c=>F[c].join(',')===key);
+  return q?mk(x,q):{off:x,q:null,name:nm((pr.key+x)%12,fl)+(ODD[key]||'?'),rn:RNT[pr.mode][x][1].toLowerCase()+(seven?'ø':'°')};
+ });
+}
+// Pick a CAGED shape for every chord so the hand moves as little as possible; the first chord prefers open position.
+function pVoicings(){let prev=null;return pr.slots.map(s=>{
+ const r=(pr.key+s.off)%12;let best=null;
+ for(const sh of ['C','A','G','E','D']){const v=voice(r,s.q,sh),sc=prev===null?v.base:Math.abs(v.base-prev)+v.base*.01;if(!best||sc<best.sc)best={r,q:s.q,sh,v,sc}}
+ prev=best.v.base;return best})}
+const pRefresh=()=>{pr.vo=pVoicings()};
+function applySlot(i){const o=pr.vo[i];if(!o)return;st.r=o.r;st.q=o.q;st.sh=o.sh;pr.cur=i}
+function showSlot(i){applySlot(i);render();flash(0.035)}
+function pEdited(){pRefresh();if(pr.slots.length){pr.sel=Math.min(pr.sel,pr.slots.length-1);if(!pr.playing)applySlot(pr.sel)}render()}
+function pLoad(i){const p=PRESETS[i];pStop();pr.mode=p.mode;pr.slots=p.s.map(([off,q])=>({off,q}));pr.sel=0;pEdited()}
+function pAdd(off,q){if(pr.slots.length>=16)return;pr.slots.push({off,q});pr.sel=pr.slots.length-1;pEdited();if(!pr.playing){Sound.strum(chordMidi(),0.045);flash(0.045)}}
+function pDel(){if(!pr.slots.length)return;pr.slots.splice(pr.sel,1);pr.sel=Math.max(0,pr.sel-1);pEdited()}
+function pEnter(){if(!pr.started){pr.started=true;pr.key=st.r;pLoad(0)}else{pRefresh();applySlot(pr.sel)}}
+// Scheduler: a short timer looks ~0.2 s ahead and books notes on the audio clock, so timing stays steady even if the page is busy.
+let pTimer=null,pNext=0,pBeat=0,pTos=[];
+function pStop(){clearInterval(pTimer);pTimer=null;pTos.forEach(clearTimeout);pTos=[];if(pr.playing){pr.playing=false;pr.cur=-1;if(st.view==='prog')renderProg()}}
+function pStart(){if(!pr.slots.length)return;pStop();pr.playing=true;pBeat=0;pRefresh();pNext=Sound.now()+0.1;pTimer=setInterval(pTick,25);pTick();renderProg()}
+function pTick(){
+ while(pNext<Sound.now()+0.2){
+  if(!pr.loop&&pBeat>=pr.slots.length*pr.beats){clearInterval(pTimer);pTimer=null;pTos.push(setTimeout(pStop,Math.max(0,(pNext-Sound.now())*1000)+50));return}
+  pSchedule(pBeat,pNext);pNext+=60/pr.bpm;pBeat++;
+ }
+}
+function pSchedule(n,t){
+ const idx=Math.floor(n/pr.beats)%pr.slots.length,beat=n%pr.beats,o=pr.vo[idx];if(!o)return;
+ const mid=o.v.fr.map((f,i)=>f<0?null:MID[i]+f).filter(m=>m!==null),spb=60/pr.bpm;
+ if(pr.click)Sound.tick(t,beat===0);
+ if(pr.style==='arp'){const seq=[...mid,...mid.slice(1,-1).reverse()];for(let h=0;h<2;h++)Sound.noteAt(seq[(beat*2+h)%seq.length],t+h*spb/2,h?.7:.9)}
+ else if(pr.style==='beat'||beat===0)Sound.strumAt(mid,t,.03,beat===0?1:.75);
+ pTos.push(setTimeout(()=>{if(!pr.playing)return;if(beat===0){pr.sel=idx;applySlot(idx);render();flash(0.03)}paintBeat(beat)},Math.max(0,(t-Sound.now())*1000)));
+}
+const paintBeat=b=>document.querySelectorAll('#beats span').forEach((e,i)=>e.classList.toggle('on',i===b));
+function renderProg(){
+ const n=pr.slots.length,shown=pr.playing?pr.cur:pr.sel,nxt=pr.playing&&n?(pr.cur+1)%n:-1;
+ $('slots').innerHTML=n?pr.slots.map((s,i)=>{const c=pChord(s);return`<button class="slot${i===nxt&&n>1?' next':''}" data-slot="${i}" aria-pressed="${i===shown}"><small>${c.rn}</small><b>${c.name}</b></button>`}).join(''):'<p class="hint">No chords yet. Pick a preset in the sidebar or add chords below.</p>';
+ $('beats').innerHTML=Array.from({length:pr.beats},()=>'<span></span>').join('');
+ $('pplay').textContent=pr.playing?'■ Stop':'▶ Play';
+ $('pinfo').textContent=pr.playing&&n>1?`Next: ${pChord(pr.slots[nxt]).name}`:`${n} chord${n===1?'':'s'} · ${n*pr.beats} beats · about ${Math.round(n*pr.beats*60/pr.bpm)} s per loop`;
+ $('bpmv').textContent=pr.bpm;
+ $('ppal').innerHTML=pPalette().map(c=>`<button ${c.q?`data-padd="${c.off},${c.q}"`:'disabled title="Not covered by this app yet"'}>${c.name}<small>${c.rn}</small></button>`).join('');
+ const on=(sel,key,val)=>document.querySelectorAll(sel+' button').forEach(b=>b.setAttribute('aria-pressed',b.dataset[key]===String(val)));
+ on('#pstyle','pstyle',pr.style);on('#pbeats','pbeats',pr.beats);on('#pflav','pflav',pr.flavor);on('#pmodes','pmode',pr.mode);
+ $('ploop').setAttribute('aria-pressed',pr.loop);$('pclick').setAttribute('aria-pressed',pr.click);
+ if(pr.playing)paintBeat(pBeat>0?(pBeat-1)%pr.beats:0);
+}
 function renderView(){
- const sc=st.view==='scale';
- document.querySelectorAll('.chordonly').forEach(e=>e.hidden=sc);
+ const v=st.view,sc=v==='scale';
+ document.querySelectorAll('.chordonly').forEach(e=>e.hidden=v!=='chord');
+ document.querySelectorAll('.chordprog').forEach(e=>e.hidden=sc);
  document.querySelectorAll('.scaleonly').forEach(e=>e.hidden=!sc);
+ document.querySelectorAll('.progonly').forEach(e=>e.hidden=v!=='prog');
  document.querySelector('#modes [data-m="fingers"]').hidden=sc;
  document.querySelector('#modes [data-m="intervals"]').textContent=sc?'Degrees':'Intervals';
- $('sub').textContent=sc?'Pick a scale on the right, then follow the dots on the neck.':'Choose a chord on the right, then follow the dots on the neck.';
- document.querySelectorAll('#views button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.view===st.view));
+ $('rootlbl').textContent=v==='prog'?'Key':'Root note';
+ $('sub').textContent={chord:'Choose a chord on the right, then follow the dots on the neck.',scale:'Pick a scale on the right, then follow the dots on the neck.',prog:'Build a progression, press play and follow each chord on the neck.'}[v];
+ document.querySelectorAll('#views button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.view===v));
  if(sc)renderScale();
+ if(v==='prog')renderProg();
 }
 function render(){
  const v=voice(),fl=flatR(st.r);
@@ -259,7 +336,7 @@ function render(){
  $('tones').innerHTML='';
  renderView();
  $('theory').innerHTML=theory();$('fits').innerHTML=fits();$('keyrow').innerHTML=keyrow();
- document.querySelectorAll('#roots button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.r===st.r));
+ document.querySelectorAll('#roots button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.r===(st.view==='prog'?pr.key:st.r)));
  document.querySelectorAll('#quals button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.q===st.q));
  document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===(st.view==='scale'&&st.mode==='fingers'?'notes':st.mode)));
  document.querySelectorAll('#shapes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===st.sh));
@@ -269,8 +346,18 @@ const QGROUPS=[['Triads',['maj','min']],['Seventh chords',['7','maj7','m7']],['S
 $('quals').innerHTML=QGROUPS.map(([t,qs])=>`<p class="qgroup">${t}</p>`+qs.map(q=>`<button data-q="${q}">${LONG[q]}</button>`).join('')).join('');
 $('modes').innerHTML=[['fingers','Fingers'],['notes','Notes'],['intervals','Intervals']].map(([m,l])=>`<button data-m="${m}">${l}</button>`).join(' ');
 $('shapes').innerHTML=['C','A','G','E','D'].map(k=>`<button data-s="${k}" title="${k} shape">${k}</button>`).join(' ');
-$('views').innerHTML=[['chord','Chords'],['scale','Scales']].map(([v,l])=>`<button data-view="${v}">${l}</button>`).join(' ');
+$('views').innerHTML=[['chord','Chords'],['scale','Scales'],['prog','Progression']].map(([v,l])=>`<button data-view="${v}">${l}</button>`).join(' ');
 $('scales').innerHTML=SGROUPS.map(([t,ks])=>`<p class="qgroup">${t}</p>`+ks.map(k=>`<button data-sc="${k}">${SCALES[k].n}</button>`).join('')).join('');
+$('pstyle').innerHTML=[['once','Once per chord'],['beat','Every beat'],['arp','Arpeggio']].map(([k,l])=>`<button data-pstyle="${k}">${l}</button>`).join(' ');
+$('pbeats').innerHTML=[2,3,4].map(k=>`<button data-pbeats="${k}">${k}</button>`).join(' ');
+$('pflav').innerHTML=[['triad','Triads'],['seventh','7th chords'],['dom','Dominant 7']].map(([k,l])=>`<button data-pflav="${k}">${l}</button>`).join(' ');
+$('pmodes').innerHTML=[['major','Major key'],['minor','Minor key']].map(([k,l])=>`<button data-pmode="${k}">${l}</button>`).join(' ');
+$('presets').innerHTML=PRESETS.map((p,i)=>`<button data-preset="${i}">${p.n}</button>`).join('');
+$('bpm').addEventListener('input',e=>{pr.bpm=+e.target.value;$('bpmv').textContent=pr.bpm;renderProg()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pStop()});
+document.addEventListener('keydown',e=>{ // Space = play / stop in the progression view
+ if(e.code==='Space'&&st.view==='prog'&&!e.target.closest('button,input,select,textarea,[data-midi]')){e.preventDefault();pr.playing?pStop():pStart()}
+});
 const chordMidi=()=>voice().fr.map((f,i)=>f<0?null:MID[i]+f).filter(m=>m!==null);
 // Notes light up in place (ripple + pop) in the order they sound; they never move.
 function flash(gap){
@@ -296,10 +383,22 @@ document.addEventListener('click',e=>{
  if(b.id==='od'){const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);Sound.setDrive(on?0.5:0);Sound.strum(chordMidi(),0.045);flash(0.045);return}
  if(b.id==='arp'){Sound.strum(chordMidi(),0.28);flash(0.28);return}
  if(b.id==='splay'||b.id==='sdown'){playScale(b.id==='sdown');return}
- if(b.dataset.view)st.view=b.dataset.view;
+ if(b.dataset.slot!==undefined){if(!pr.playing){pr.sel=+b.dataset.slot;showSlot(pr.sel)}return}
+ if(b.dataset.padd){const[o,q]=b.dataset.padd.split(',');pAdd(+o,q);return}
+ if(b.id==='pplay'){pr.playing?pStop():pStart();return}
+ if(b.id==='ploop'){pr.loop=!pr.loop;renderProg();return}
+ if(b.id==='pclick'){pr.click=!pr.click;renderProg();return}
+ if(b.id==='pdel'){pDel();return}
+ if(b.id==='pclear'){pStop();pr.slots=[];pr.sel=0;pEdited();return}
+ if(b.dataset.pstyle){pr.style=b.dataset.pstyle;renderProg();return}
+ if(b.dataset.pbeats){pr.beats=+b.dataset.pbeats;renderProg();return}
+ if(b.dataset.pflav){pr.flavor=b.dataset.pflav;renderProg();return}
+ if(b.dataset.pmode){pr.mode=b.dataset.pmode;pEdited();return}
+ if(b.dataset.preset!==undefined){pLoad(+b.dataset.preset);return}
+ if(b.dataset.view){const was=st.view;st.view=b.dataset.view;if(was==='prog'&&st.view!=='prog')pStop();if(st.view==='prog'&&was!=='prog')pEnter()}
  if(b.dataset.sc){st.sc=b.dataset.sc;st.pos=0}
  if(b.dataset.pos!==undefined)st.pos=+b.dataset.pos;
- if(b.dataset.r!==undefined)st.r=+b.dataset.r;
+ if(b.dataset.r!==undefined){if(st.view==='prog'&&b.closest('#roots')){pr.key=+b.dataset.r;pEdited();return}st.r=+b.dataset.r}
  if(b.dataset.q)st.q=b.dataset.q;
  if(b.dataset.m)st.mode=b.dataset.m;
  if(b.dataset.s!==undefined)st.sh=b.dataset.s;

@@ -53,6 +53,11 @@ It is made for:
 - **Positions**: pick one "box" at a time (5 for pentatonic scales, 7 for the others) to learn the neck piece by piece. Play the scale up or down and watch the notes ripple.
 - **Chords from this scale**: the triads and 7th chords built on each note, with Roman numerals. Tap one to jump to it in Chords mode.
 
+### Play along with a progression
+- A third view, **Progression**: pick a key, choose a preset (pop, classic, canon, jazz ii–V–I, 12-bar blues, two minor ones) or build your own from the key's chords.
+- Press **Play** (or the space bar) to hear it in time with a metronome click. Set the tempo, loop it, and choose how it is played: once per chord, every beat, or as an arpeggio.
+- The player picks the hand positions for you so your hand travels as little as possible, and the fretboard and chord diagram follow along with a "next chord" hint.
+
 ### Make it yours
 - **Light and Night** themes. It follows your device on the first visit, then remembers your choice.
 - Works on desktop, tablet and phone.
@@ -93,7 +98,7 @@ Thank you! Every bit of support goes toward new chord types, scales and more voi
 
 - [x] More chord types: sus, 6th and power chords
 - [x] Scale finder
-- [ ] Progression player
+- [x] Progression player
 - [ ] More voicings per chord
 
 Have an idea? [Open an issue](https://github.com/maikereis/fretboard-companion/issues) and tell me what would help you most.

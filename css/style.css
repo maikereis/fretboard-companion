@@ -655,3 +655,18 @@ details[open] summary {
 .scale-card .cname { font-size: clamp(3rem, 6vw, 5rem); }
 .scale-card .row { margin-top: 10px; }
 #views { margin-bottom: 4px; }
+
+/* Progression player */
+#views button { padding: 6px 6px; font-size: .88rem; }
+.slots { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 6px; }
+.slot { display: flex; flex-direction: column; align-items: center; min-width: 78px; padding: 8px 12px; border-radius: 16px; line-height: 1.2; }
+.slot b { font-size: 1.25rem; }
+.slot small { font-size: .75rem; opacity: .85; }
+.slot.next { outline: 2px dashed var(--root); outline-offset: 2px; }
+.beats { display: flex; gap: 6px; margin: 4px 0 10px; }
+.beats span { width: 14px; height: 14px; border-radius: 50%; background: var(--line); }
+.beats span.on { background: var(--root); }
+.bpm { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.bpm input { width: min(220px, 40vw); accent-color: var(--acc); }
+#presets button { text-align: left; }
+.prog-card h2.pal { margin: 16px 0 0; }

@@ -165,6 +165,12 @@ const Sound = (() => {
 
   function note(midi, delay = 0, velocity = 1, pan = 0) {
     init();
+    noteAt(midi, ctx.currentTime + delay, velocity, pan);
+  }
+
+  // Same as note(), but at an exact AudioContext time. Used by the progression player's scheduler.
+  function noteAt(midi, time, velocity = 1, pan = 0) {
+    init();
     const src = ctx.createBufferSource();
     const g = ctx.createGain();
     src.buffer = buffer(midi);
@@ -177,7 +183,7 @@ const Sound = (() => {
     } else {
       g.connect(bus);
     }
-    src.start(ctx.currentTime + delay);
+    src.start(time);
   }
 
   // Play several MIDI notes low to high. gap = seconds between notes (0.045 strum, 0.28 arpeggio).
@@ -195,5 +201,28 @@ const Sound = (() => {
     });
   }
 
-  return { note, strum, setDrive };
+  function now() { init(); return ctx.currentTime; }
+
+  // A strum starting at an exact time, with the same small timing and volume variation as strum().
+  function strumAt(midis, time, gap = 0.03, vel = 1) {
+    const n = midis.length;
+    midis.forEach((m, i) => noteAt(
+      m,
+      time + i * gap + (Math.random() - 0.5) * 0.006,
+      vel * (1.0 - 0.15 * (i / Math.max(1, n - 1))) * (0.9 + Math.random() * 0.2),
+      n > 1 ? (i / (n - 1) - 0.5) * 0.3 : 0));
+  }
+
+  // Metronome click at an exact time (accent = higher pitch). It skips the amp so overdrive never distorts it.
+  function tick(time, accent) {
+    init();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = accent ? 1600 : 1100;
+    g.gain.setValueAtTime(accent ? 0.22 : 0.13, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(time); o.stop(time + 0.06);
+  }
+
+  return { note, strum, setDrive, now, noteAt, strumAt, tick };
 })();
