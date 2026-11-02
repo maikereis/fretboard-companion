@@ -3,8 +3,8 @@
 const fs=require('fs');
 const src=fs.readFileSync(process.argv[2],'utf8').split('\n');
 const cut=src.findIndex(l=>l.startsWith('function diagram'));
-(0,eval)(src.slice(0,cut).join('\n').replace("const $=id=>document.getElementById(id);","")+';globalThis.API={F,genVoicings,pcOf,NF};');
-const{F,genVoicings,pcOf,NF}=API;
+(0,eval)(src.slice(0,cut).join('\n').replace("const $=id=>document.getElementById(id);","")+';globalThis.API={F,genVoicings,pcOf,NF,whyHard,voice};');
+const{F,genVoicings,pcOf,NF,whyHard,voice}=API;
 let chords=0,total=0,bad=0,empty=[],noRoot=[];const per=[];
 for(const q of Object.keys(F))for(let r=0;r<12;r++){
   chords++;const L=genVoicings(r,q),tones=F[q].map(x=>(r+x)%12),fifthOptional=(q.includes('7')||q.includes('6'))&&tones.length>3;
@@ -32,10 +32,14 @@ for(const q of Object.keys(F))for(let r=0;r<12;r++){
       else{const f=[...fs][0];if(f<lastFret)errs.push(v.key+': fingers cross');lastFret=f;
         if(!fr.slice(ix[0],ix[ix.length-1]+1).every(x=>x>=f))errs.push(v.key+': a barre over an open or lower string')}
     }
+    const hard=whyHard(fr,fg);if(hard)errs.push(v.key+': too hard for a hand ('+hard+')');
     if(v.base!==(fr.includes(0)||!fr0.length?0:Math.min(...fr0)))errs.push(v.key+': wrong base');
   }
   per.push(L.length);if(errs.length){bad++;console.log('-',q,'root',r,'=>',[...new Set(errs)].slice(0,4).join('; '))}
 }
+// the five classic CAGED shapes: every chord must keep at least three that a hand can play
+let fewShapes=[];for(const q of Object.keys(F))for(let r=0;r<12;r++){const n=[...'CAGED'].filter(s=>{const w=voice(r,q,s);return!whyHard(w.fr,w.fg)}).length;if(n<3)fewShapes.push(q+'/'+r+':'+n)}
+if(fewShapes.length){bad++;console.log('- chords with fewer than 3 playable CAGED shapes:',fewShapes.join(' '))}
 console.log('chords',chords,'| voicings',total,'| chords with problems',bad);
 console.log('per chord: min',Math.min(...per),'max',Math.max(...per),'average',Math.round(per.reduce((a,b)=>a+b)/per.length));
 console.log('chords with no voicing at all:',empty.length?empty.join(' '):'none');

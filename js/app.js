@@ -84,9 +84,38 @@ function lab(i,f,fg){
  const pc=pcOf(i,f);
  return st.mode==='notes'?nm(pc,flatR(st.r)):IV[(pc-st.r+12)%12];
 }
+// ---------- Can a hand play it? ----------
+// Limits of a real hand, calibrated on real chord charts (see tools/check-against-chords-db.js: 96.8% of 433 fingerings in the
+// open chords-db database pass, and the ones that fail are rare or advanced). Returns the reason a fingering is too hard, or null.
+//   fr = fret per string (low to high, -1 muted), fg = finger per string (0 = none, 1 = index ... 4 = pinky)
+const REACH={'1-2':2,'2-3':2,'3-4':2,'1-3':3,'2-4':3,'1-4':3}; // widest gap, in frets, that each pair of fingers can cover
+function whyHard(fr,fg){
+ const g={};fr.forEach((f,i)=>{if(f>0)(g[fg[i]]=g[fg[i]]||[]).push(i)});
+ if(g[0])return'a pressed string has no finger';
+ const used=Object.keys(g).map(Number).sort((a,b)=>a-b);if(used.length>4)return'more than 4 fingers';
+ const fretted=fr.filter(f=>f>0),span=fretted.length?Math.max(...fretted)-Math.min(...fretted):0;if(span>3)return'wider than 4 frets';
+ let multi=0,last=0;
+ for(const n of used){const ix=g[n],f=fr[ix[0]];
+  if(ix.some(i=>fr[i]!==f))return'one finger on two frets';
+  if(f<last)return'fingers cross';last=f;
+  if(ix.length>1){multi++;const seg=fr.slice(ix[0],ix[ix.length-1]+1);
+   if(seg.some(x=>x>=0&&x<f))return'a finger lies across an open or lower string';
+   if(seg.some(x=>x===-1))return'a finger lies across a muted string';  // advanced: the finger must also deaden that string
+   if(n===2)return'the middle finger cannot lie across strings';
+   if(n===4&&(ix.length>2||ix[1]-ix[0]>1))return'the pinky can only cover two neighbouring strings';}}
+ for(let a=0;a<used.length;a++)for(let b=a+1;b<used.length;b++)
+  if(Math.abs(fr[g[used[b]][0]]-fr[g[used[a]][0]])>REACH[used[a]+'-'+used[b]])return'fingers '+used[a]+' and '+used[b]+' are too far apart';
+ if(span===3&&used.length===4&&multi>=2)return'a full 4-fret stretch with two fingers lying flat'; // never seen in real charts
+ return null;
+}
+const shapeOK=(r,q,sh)=>{const v=voice(r,q,sh);return!whyHard(v.fr,v.fg)};
+function okShape(r,q,sh){ // keep the chosen shape if playable, otherwise the playable one closest to it on the neck
+ if(shapeOK(r,q,sh))return sh;const b0=voice(r,q,sh).base,c=[...'CAGED'].filter(s=>shapeOK(r,q,s));
+ return c.length?c.reduce((a,b)=>Math.abs(voice(r,q,b).base-b0)<Math.abs(voice(r,q,a).base-b0)?b:a):sh;
+}
 // ---------- More voicings: generated, not hand-written ----------
 // A voicing is any way to play the chord that (1) uses only chord tones and all the needed ones, (2) fits a 4-fret window,
-// (3) leaves no muted string between played strings, and (4) can be fingered with four fingers (barres and mini-barres allowed).
+// (3) leaves no muted string between played strings, and (4) can be fingered by a real hand (see whyHard() above: four fingers, barres, reach).
 // Open strings are allowed when everything stays within the first five frets.
 function assignFingers(fr){
  const fs=[];fr.forEach((f,i)=>{if(f>0)fs.push(i)});
@@ -100,7 +129,13 @@ function assignFingers(fr){
   fs.forEach(i=>{if(!used.has(i))groups.push({f:fr[i],s:[i]})});
   if(groups.length>4)continue;
   groups.sort((a,b)=>a.f-b.f||a.s[0]-b.s[0]);
-  const fg=fr.map(()=>0);groups.forEach((g,k)=>g.s.forEach(i=>fg[i]=k+1));return fg;
+  // Fingers rise with the fret. Try the lowest finger numbers first, and use the ring finger or pinky when the reach needs it
+  // (a barre at the lowest fret plus one far note is played index + pinky, a mini-barre higher up is played with the ring finger).
+  const pick=(k,from=1)=>k===0?[[]]:[1,2,3,4].filter(x=>x>=from&&4-x>=k-1).flatMap(x=>pick(k-1,x+1).map(t=>[x,...t]));
+  for(const nums of pick(groups.length)){
+   const fg=fr.map(()=>0);groups.forEach((g,k)=>g.s.forEach(i=>fg[i]=nums[k]));
+   if(!whyHard(fr,fg))return fg; // otherwise try the next way of fingering it
+  }
  }
  return null;
 }
@@ -319,7 +354,8 @@ function pPalette(){ // chords you can add: the key's own chords (triads or 7ths
 // Pick a CAGED shape for every chord so the hand moves as little as possible; the first chord prefers open position.
 function pVoicings(){let prev=null;return pr.slots.map(s=>{
  const r=(pr.key+s.off)%12;let best=null;
- for(const sh of ['C','A','G','E','D']){const v=voice(r,s.q,sh),sc=prev===null?v.base:Math.abs(v.base-prev)+v.base*.01;if(!best||sc<best.sc)best={r,q:s.q,sh,v,sc}}
+ const ok=[...'CAGED'].filter(sh=>shapeOK(r,s.q,sh));
+ for(const sh of ok.length?ok:[...'CAGED']){const v=voice(r,s.q,sh),sc=prev===null?v.base:Math.abs(v.base-prev)+v.base*.01;if(!best||sc<best.sc)best={r,q:s.q,sh,v,sc}}
  prev=best.v.base;return best})}
 const pRefresh=()=>{pr.vo=pVoicings()};
 function applySlot(i){const o=pr.vo[i];if(!o)return;st.r=o.r;st.q=o.q;st.sh=o.sh;pr.cur=i}
@@ -364,7 +400,7 @@ function renderProg(){
 // ---------- Voicing picker (chord view) ----------
 const voicingList=()=>genVoicings(st.r,st.q).filter(v=>(st.vinv||!v.inv)&&(st.vsize==='all'||(st.vsize==='full'?v.n>=5:st.vsize==='four'?v.n===4:v.n<=3)));
 function curVoice(){ // the voicing on screen: a generated one if picked, otherwise the CAGED shape
- if(st.view!=='chord'||st.vmode!=='all')return voice();
+ if(st.view!=='chord'||st.vmode!=='all'){if(st.view==='chord')st.sh=okShape(st.r,st.q,st.sh);return voice()}
  const L=voicingList();if(!L.length)return voice();
  let v=L.find(x=>x.key===st.gk);
  if(!v){v=L.reduce((a,b)=>Math.abs(b.base-st.gb)<Math.abs(a.base-st.gb)?b:a);st.gk=v.key} // new chord: stay near the same spot on the neck
@@ -372,7 +408,7 @@ function curVoice(){ // the voicing on screen: a generated one if picked, otherw
 }
 function thumb(v,sel){
  const b=v.base>0?v.base:1,rows=v.base>0?4:5,x0=9,sx=9,y0=17,sy=11,tab=v.fr.map(f=>f<0?'x':f).join(v.fr.some(f=>f>9)?'-':'');
- let s=`<svg class="tb" viewBox="0 0 76 ${y0+rows*sy+5}" aria-hidden="true">`;
+ let s=`<svg class="tb" viewBox="0 0 68 ${y0+rows*sy+5}" aria-hidden="true">`;
  for(let j=0;j<=rows;j++)s+=`<line class="${j===0&&b===1?'nut':''}" x1="${x0}" x2="${x0+5*sx}" y1="${y0+j*sy}" y2="${y0+j*sy}"/>`;
  for(let i=0;i<6;i++)s+=`<line x1="${x0+i*sx}" x2="${x0+i*sx}" y1="${y0}" y2="${y0+rows*sy}"/>`;
  if(b>1)s+=`<text x="${x0+5*sx+11}" y="${y0+8}">${b}</text>`;
@@ -416,7 +452,7 @@ function render(){
  document.querySelectorAll('#roots button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.r===(st.view==='prog'?pr.key:st.r)));
  document.querySelectorAll('#quals button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.q===st.q));
  document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===(st.view==='scale'&&st.mode==='fingers'?'notes':st.mode)));
- document.querySelectorAll('#shapes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===st.sh&&st.vmode==='caged'));
+ document.querySelectorAll('#shapes button').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.s===st.sh&&st.vmode==='caged');const ok=shapeOK(st.r,st.q,b.dataset.s);b.disabled=!ok;b.title=ok?b.dataset.s+' shape':'Too hard to play at this position'});
 }
 $('roots').innerHTML=S.map((n,i)=>`<button data-r="${i}">${[1,3,6,8,10].includes(i)?n.replace('#','♯')+'/'+FL[i].replace('b','♭'):n}</button>`).join('');
 const QGROUPS=[['Triads',['maj','min']],['Seventh chords',['7','maj7','m7']],['Suspended, 6th and power',['sus2','sus4','6','m6','5']]];
