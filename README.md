@@ -76,6 +76,15 @@ This is a calibration, not proof: chords-db is a community collection, and "comf
 - Press **Play** (or the space bar) to hear it in time with a metronome click. Set the tempo, loop it, and choose how it is played: once per chord, every beat, or as an arpeggio.
 - The player picks the hand positions for you so your hand travels as little as possible, and the fretboard and chord diagram follow along with a "next chord" hint.
 
+### Learn to read tablature
+- A fourth view, **Tab**, replaces the fretboard with a tab trainer. It hides the neck on purpose: the tab is the lesson.
+- **Learn**: 14 techniques, each shown as a drawn tab and as the plain-text tab you find on websites, with how to play it, what it should sound like and a common mistake. Hammer-on, pull-off, slide up and down, slide into / off a note, dead note, vibrato, bend, pre-bend, bend and release, palm mute, natural harmonic, tapping and trill. "Another example" gives a new random one; Play lights up each note as it sounds, and you can change the tempo.
+- **Licks**: four short phrases that combine techniques (blues-rock opener, slide and hammer groove, palm-muted riff, tapping and trill) to practise slowly and speed up.
+- **Quiz**: name the technique from a drawn tab, from a text tab, or by ear, with score and streak.
+- **On the neck**: under every tab there is a close-up of the fretting hand on a few frets. Fingers drop, lift, slide or bend the string in time with the sound, with suggested finger numbers and a one-line instruction for each moment. A pick marker flashes on picked notes and stays dark on hammer-ons, pull-offs, slides and taps, so you can see which notes are not picked. A dashed line shows how far a bend or vibrato should go, and the palm lights up for palm mutes. It is drawn from the same data and timings as the sound, not by hand. In the quiz it appears only after you answer, so it does not give the answer away.
+- Hammer-ons, pull-offs and slides keep one ringing string and only change its pitch, so they sound like the real thing instead of two separate plucks.
+- `tools/validate-tab.js` checks every generated example (valid strings and frets, notes that go the right way, drawing and text tab agree, the example really uses its technique) and the close-up at every moment (the right fingers are down, upper fingers lift on pull-offs, nothing is left behind by a slide, the string bends, the pick shows only on picked notes).
+
 ### Make it yours
 - **Light and Night** themes. It follows your device on the first visit, then remembers your choice.
 - Works on desktop, tablet and phone.
@@ -118,6 +127,7 @@ Thank you! Every bit of support goes toward new chord types, scales and more voi
 - [x] Scale finder
 - [x] Progression player
 - [x] More voicings per chord
+- [x] Tablature trainer (hammer-ons, pull-offs, slides, bends, vibrato and more)
 
 Have an idea? [Open an issue](https://github.com/maikereis/fretboard-companion/issues) and tell me what would help you most.
 
@@ -151,7 +161,7 @@ index.html            page markup
 css/style.css         styles (light and dark mode)
 js/theme.js           Light / Night switch
 js/donate.js          builds the Support section
-js/audio.js           sound engine (Sound.note, Sound.strum)
+js/audio.js           sound engine (notes, strums, tab techniques)
 js/app.js             chord data, diagrams, fretboard, theory
 .github/FUNDING.yml   repository Sponsor button
 ```

@@ -224,5 +224,126 @@ const Sound = (() => {
     o.start(time); o.stop(time + 0.06);
   }
 
-  return { note, strum, setDrive, now, noteAt, strumAt, tick };
+  // ---- Playing a written lick ------------------------------------------------------------------------------
+  // Each event is {m: MIDI note, t: start (beats), d: length (beats), x: 'h'|'p'|'/'|'\\'|'dead'|'slin'|'slout', bend, pb, rel, vib, pm, nh, tr, m2}.
+  // Hammer-ons, pull-offs and slides do NOT pluck again: they keep the same string sounding and only change its pitch,
+  // which is what really happens on a guitar. Bends and vibrato also move the pitch of the one ringing string.
+  const semi = n => Math.pow(2, n / 12);
+  const LEGATO = ['h', 'p', '/', '\\'];
+
+  function lickAt(events, t0, spb, vel = 1) {
+    init();
+    const chains = [];
+    events.forEach(e => {
+      if (LEGATO.includes(e.x) && chains.length) chains[chains.length - 1].push(e);
+      else chains.push([e]);
+    });
+    const nodes = chains.map(ch => chain(ch, t0, spb, vel));
+    return {
+      stop() {
+        const t = ctx.currentTime;
+        nodes.forEach(n => {
+          try {
+            n.g.gain.cancelScheduledValues(t);
+            n.g.gain.setTargetAtTime(0, t, 0.015);
+            n.src.stop(t + 0.12);
+            n.lfos.forEach(l => l.stop(t + 0.12));
+          } catch (e) { /* already stopped */ }
+        });
+      }
+    };
+  }
+
+  function chain(ch, t0, spb, vel) {
+    const f = ch[0], last = ch[ch.length - 1];
+    const t = t0 + f.t * spb, dur = f.d * spb, end = t0 + (last.t + last.d) * spb;
+    const src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = buffer(f.m);
+
+    let out = src;
+    if (f.x === 'dead' || f.pm) {                       // muffled: dark tone and a short thud
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = f.x === 'dead' ? 420 : 1000;
+      src.connect(lp); out = lp;
+    }
+    out.connect(g); g.connect(bus);
+
+    const A = 0.5 * vel * (f.x === 'dead' ? 1.2 : f.pm ? 1.1 : f.nh ? 0.8 : 1);
+    const gp = g.gain;
+    gp.setValueAtTime(A, t);
+    let fadeAt = end;
+    if (f.x === 'dead') {
+      gp.exponentialRampToValueAtTime(0.001, t + 0.07);
+      fadeAt = Math.max(end, t + 0.07);
+    } else if (f.pm) {
+      const rt = Math.min(0.22, dur * 0.9);
+      gp.exponentialRampToValueAtTime(A * 0.1, t + rt);
+      fadeAt = Math.max(end, t + rt);
+    }
+    // fade out at the end of the note: a plain scheduled ramp (more predictable across browsers than setTargetAtTime)
+    const held = f.x === 'dead' ? 0.001 : f.pm ? A * 0.1 : A;
+    gp.setValueAtTime(held, fadeAt);
+    gp.exponentialRampToValueAtTime(0.0001, fadeAt + 0.3);
+    src.start(t);
+    src.stop(Math.max(end, t + 0.1) + 0.5);
+
+    // pitch of the ringing string
+    const rp = src.playbackRate;
+    if (f.pb) {                                          // pre-bend: already bent when picked, optionally released
+      rp.setValueAtTime(semi(f.pb), t);
+      if (f.rel) {
+        const a = t + dur * 0.45, d = Math.min(0.35, dur * 0.3);
+        rp.setValueAtTime(semi(f.pb), a);
+        rp.exponentialRampToValueAtTime(1, a + d);
+      }
+    } else if (f.bend) {                                 // bend up after the pick, optionally release back
+      const a = t + Math.min(0.12, dur * 0.1), u = Math.min(0.3, dur * 0.3);
+      rp.setValueAtTime(1, a);
+      rp.exponentialRampToValueAtTime(semi(f.bend), a + u);
+      if (f.rel) {
+        const b = t + dur * 0.62, d = Math.min(0.3, dur * 0.28);
+        rp.setValueAtTime(semi(f.bend), b);
+        rp.exponentialRampToValueAtTime(1, b + d);
+      }
+    } else if (f.x === 'slin') {                         // slide into the note from a few frets below
+      rp.setValueAtTime(semi(-4), t);
+      rp.exponentialRampToValueAtTime(1, t + Math.min(0.22, dur * 0.4));
+    } else if (f.x === 'slout') {                        // slide off the note, down the neck
+      rp.setValueAtTime(1, t + dur * 0.35);
+      rp.exponentialRampToValueAtTime(semi(-7), t + dur * 0.95);
+    } else if (f.tr) {                                   // trill: flip between two notes about 9 times a second
+      const r2 = semi(f.m2 - f.m);
+      for (let k = 0, x = t; x < end; k++, x += 0.11) rp.setValueAtTime(k % 2 ? r2 : 1, x);
+    }
+
+    // notes joined to this one (hammer-on, pull-off, slide) just move the pitch
+    let prev = 1;
+    ch.slice(1).forEach((e, i) => {
+      const te = t0 + e.t * spb, r = semi(e.m - f.m);
+      if (e.x === 'h' || e.x === 'p') rp.setValueAtTime(r, te);
+      else {
+        const sd = Math.min(0.2, (e.t - ch[i].t) * spb * 0.6);
+        rp.setValueAtTime(prev, te - sd);
+        rp.exponentialRampToValueAtTime(r, te);
+      }
+      prev = r;
+    });
+
+    // vibrato: a slow wobble of the pitch that fades in
+    const lfos = [];
+    if (src.detune) ch.forEach(e => {
+      if (!e.vib) return;
+      const te = t0 + e.t * spb, ed = te + e.d * spb, s0 = te + Math.min(0.35, e.d * spb * 0.3);
+      const lfo = ctx.createOscillator(), dg = ctx.createGain();
+      lfo.frequency.value = 5.5;
+      dg.gain.setValueAtTime(0, s0);
+      dg.gain.linearRampToValueAtTime(e.vib === 2 ? 70 : 28, s0 + 0.25);   // cents
+      lfo.connect(dg); dg.connect(src.detune);
+      lfo.start(te); lfo.stop(ed + 0.8);
+      lfos.push(lfo);
+    });
+    return { src, g, lfos };
+  }
+
+  return { note, strum, setDrive, now, noteAt, strumAt, tick, lickAt };
 })();
