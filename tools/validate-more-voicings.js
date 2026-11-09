@@ -3,11 +3,11 @@
 const fs=require('fs');
 const src=fs.readFileSync(process.argv[2],'utf8').split('\n');
 const cut=src.findIndex(l=>l.startsWith('function diagram'));
-(0,eval)(src.slice(0,cut).join('\n').replace("const $=id=>document.getElementById(id);","")+';globalThis.API={F,genVoicings,pcOf,NF,whyHard,voice};');
-const{F,genVoicings,pcOf,NF,whyHard,voice}=API;
+(0,eval)(src.slice(0,cut).join('\n').replace("const $=id=>document.getElementById(id);","")+';globalThis.API={F,genVoicings,pcOf,NF,whyHard,voice,OPT5,T,cagedOK};');
+const{F,genVoicings,pcOf,NF,whyHard,voice,OPT5,T,cagedOK}=API;
 let chords=0,total=0,bad=0,empty=[],noRoot=[];const per=[];
 for(const q of Object.keys(F))for(let r=0;r<12;r++){
-  chords++;const L=genVoicings(r,q),tones=F[q].map(x=>(r+x)%12),fifthOptional=(q.includes('7')||q.includes('6'))&&tones.length>3;
+  chords++;const L=genVoicings(r,q),tones=F[q].map(x=>(r+x)%12),fifthOptional=OPT5.includes(q);
   const need=tones.filter((p,i)=>!(fifthOptional&&i===2)),errs=[];
   if(!L.length)empty.push(q+'/'+r);
   if(!L.some(v=>!v.inv&&v.n>=(q==='5'?2:4)))noRoot.push(q+'/'+r);
@@ -37,9 +37,14 @@ for(const q of Object.keys(F))for(let r=0;r<12;r++){
   }
   per.push(L.length);if(errs.length){bad++;console.log('-',q,'root',r,'=>',[...new Set(errs)].slice(0,4).join('; '))}
 }
-// the five classic CAGED shapes: every chord must keep at least three that a hand can play
-let fewShapes=[];for(const q of Object.keys(F))for(let r=0;r<12;r++){const n=[...'CAGED'].filter(s=>{const w=voice(r,q,s);return!whyHard(w.fr,w.fg)}).length;if(n<3)fewShapes.push(q+'/'+r+':'+n)}
+// the five classic CAGED shapes: the classic chords must keep at least three that a hand can play. Newer types have fewer
+// classic shapes (some have none), and then the app shows the generated voicings, so what matters is that voicing() never fails.
+const CLASSIC=['maj','min','7','maj7','m7','sus2','sus4','6','m6','5'];
+let fewShapes=[],noShape=[];for(const q of Object.keys(F))for(let r=0;r<12;r++){const n=[...'CAGED'].filter(s=>{if(!(T[q]&&T[q][s]))return false;const w=voice(r,q,s);return!whyHard(w.fr,w.fg)}).length;
+ if(CLASSIC.includes(q)&&n<3)fewShapes.push(q+'/'+r+':'+n);
+ if(!n){noShape.push(q+'/'+r);const w=voice(r,q,'E');if(!w.fr.length||whyHard(w.fr,w.fg))fewShapes.push(q+'/'+r+': fallback is not playable')}}
 if(fewShapes.length){bad++;console.log('- chords with fewer than 3 playable CAGED shapes:',fewShapes.join(' '))}
+console.log('chord/root pairs shown with generated voicings only (no playable classic shape):',noShape.length,'of',chords);
 console.log('chords',chords,'| voicings',total,'| chords with problems',bad);
 console.log('per chord: min',Math.min(...per),'max',Math.max(...per),'average',Math.round(per.reduce((a,b)=>a+b)/per.length));
 console.log('chords with no voicing at all:',empty.length?empty.join(' '):'none');

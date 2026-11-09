@@ -56,7 +56,7 @@ It is made for:
 ### How the app decides a chord is playable
 There is no official standard for this, because it depends on hand size and technique. The app uses a short list of limits of a real hand (`whyHard()` in `js/app.js`): at most four fingers, everything inside a 4-fret stretch, one finger per fret, no finger lying across an open string, only the index and ring finger can lie across several strings (the pinky only across two neighbours, the middle finger never), a maximum reach for each pair of fingers, and no "full 4-fret stretch with two fingers lying flat" (which no real chart uses). It also skips fingers lying across a muted string, which is an advanced trick.
 
-The limits were calibrated against real chord charts: the open [chords-db](https://github.com/tombatossals/chords-db) database (MIT license). 96.8% of its 433 fingerings for the chord types in this app pass; the rest are rare or advanced, and three are typos in the database. To re-run the check yourself:
+The limits were calibrated against real chord charts: the open [chords-db](https://github.com/tombatossals/chords-db) database (MIT license). 97.2% of its 818 fingerings for the chord types in this app pass (a fingering counts as passing if the chart's own finger numbers pass, or the app can find another fingering for the same shape); the rest are rare or advanced, and a few are typos in the database. To re-run the check yourself:
 
 ```bash
 npm i --no-save @tombatossals/chords-db
@@ -76,13 +76,32 @@ This is a calibration, not proof: chords-db is a community collection, and "comf
 - Press **Play** (or the space bar) to hear it in time with a metronome click. Set the tempo, loop it, and choose how it is played: once per chord, every beat, or as an arpeggio.
 - The player picks the hand positions for you so your hand travels as little as possible, and the fretboard and chord diagram follow along with a "next chord" hint.
 
+### Learn to read tablature
+- A fourth view, **Tab**, replaces the fretboard with a tab trainer. It hides the neck on purpose: the tab is the lesson.
+- **Learn**: 14 techniques, each shown as a drawn tab and as the plain-text tab you find on websites, with how to play it, what it should sound like and a common mistake. Hammer-on, pull-off, slide up and down, slide into / off a note, dead note, vibrato, bend, pre-bend, bend and release, palm mute, natural harmonic, tapping and trill. "Another example" gives a new random one; Play lights up each note as it sounds, and you can change the tempo.
+- **Licks**: four short phrases that combine techniques (blues-rock opener, slide and hammer groove, palm-muted riff, tapping and trill) to practise slowly and speed up.
+- **Quiz**: name the technique from a drawn tab, from a text tab, or by ear, with score and streak.
+- **On the neck**: under every tab there is a close-up of the fretting hand on a few frets. Fingers drop, lift, slide or bend the string in time with the sound, with suggested finger numbers and a one-line instruction for each moment. A pick marker flashes on picked notes and stays dark on hammer-ons, pull-offs, slides and taps, so you can see which notes are not picked. A dashed line shows how far a bend or vibrato should go, and the palm lights up for palm mutes. It is drawn from the same data and timings as the sound, not by hand. In the quiz it appears only after you answer, so it does not give the answer away.
+- Hammer-ons, pull-offs and slides keep one ringing string and only change its pitch, so they sound like the real thing instead of two separate plucks.
+- `tools/validate-tab.js` checks every generated example (valid strings and frets, notes that go the right way, drawing and text tab agree, the example really uses its technique) and the close-up at every moment (the right fingers are down, upper fingers lift on pull-offs, nothing is left behind by a slide, the string bends, the pick shows only on picked notes).
+
 ### Make it yours
 - **Light and Night** themes. It follows your device on the first visit, then remembers your choice.
 - Works on desktop, tablet and phone.
 
 ## Chords included
 
-Major, minor, dominant 7, major 7, minor 7, suspended 2 (sus2), suspended 4 (sus4), major 6, minor 6 and power chords (5), on all twelve root notes, in all five CAGED shapes.
+18 chord types on all twelve root notes:
+
+- **Triads**: major, minor
+- **Seventh chords**: dominant 7, major 7, minor 7
+- **Suspended, 6th and power**: sus2, sus4, major 6, minor 6, power chord (5)
+- **Diminished and augmented**: diminished (dim), diminished 7 (dim7), minor 7♭5 (m7♭5, half-diminished), augmented (aug)
+- **Colour chords**: add9, dominant 9, minor 9 and minor-major 7 (written m(maj7), mM7 or m7M, for example `x02110` is Am(maj7))
+
+The older types have all five CAGED shapes. For the newer ones, shapes are made from a classic shape by moving one or two notes and kept only if a hand can play them. Dominant 9, minor 9 and add9 have no classic shapes, so the app shows the generated voicings instead (the CAGED row is greyed out, and the first voicing is selected). In the interval view the 9th is labelled 9, the augmented 5th ♯5 and the diminished 7th ♭♭7.
+
+There is no complete official list of chord fingerings. A chord is defined by its notes, and the app generates every fingering that has exactly the right notes and that a hand can play. [chords-db](https://github.com/tombatossals/chords-db) is the closest community reference, and `tools/check-against-chords-db.js` compares the generated voicings with it for every type.
 
 ## Privacy
 
@@ -118,6 +137,8 @@ Thank you! Every bit of support goes toward new chord types, scales and more voi
 - [x] Scale finder
 - [x] Progression player
 - [x] More voicings per chord
+- [x] Tablature trainer (hammer-ons, pull-offs, slides, bends, vibrato and more)
+- [x] More chord types: dim, dim7, m7♭5, aug, add9, 9, m9 and minor-major 7
 
 Have an idea? [Open an issue](https://github.com/maikereis/fretboard-companion/issues) and tell me what would help you most.
 
@@ -151,7 +172,7 @@ index.html            page markup
 css/style.css         styles (light and dark mode)
 js/theme.js           Light / Night switch
 js/donate.js          builds the Support section
-js/audio.js           sound engine (Sound.note, Sound.strum)
+js/audio.js           sound engine (notes, strums, tab techniques)
 js/app.js             chord data, diagrams, fretboard, theory
 .github/FUNDING.yml   repository Sponsor button
 ```
@@ -163,3 +184,13 @@ js/app.js             chord data, diagrams, fretboard, theory
 ## License
 
 Released under the [PolyForm Shield License 1.0.0](https://polyformproject.org/licenses/shield/1.0.0). See [`LICENSE`](LICENSE) for the full terms. Copyright © [maikereis](https://github.com/maikereis).
+
+### Your own tab ("My tab")
+
+Paste a plain-text tab (six lines, one per string) into **Tab → My tab** and the app shows, move by move, which finger goes where, then plays it.
+
+- **Reads** numbers, `h` hammer-on, `p` pull-off, `/` `\\` slides (a mark glued to the note links two notes, a mark with dashes before the number is a slide-in), `b` bend, `pb` pre-bend, `r` release, `~` vibrato, `x` dead note, `<12>` harmonic, `t5` tap, `tr7` trill and a `P.M.---|` line for palm muting.
+- **Parts:** split by bars (`|`) or by gaps of three dashes or more. Play all parts or one at a time, with loop, metronome and a count-in. Press any note in "Follow along" to start from there.
+- **Rhythm and tempo:** a line such as `60 bpm` above the tab sets the tempo, and `rhythm 1/16` sets the dash length. Timing either follows the spacing of the dashes or uses even steps.
+- **Limits:** other symbols are skipped with a message. Tuning is read from the string names, but the close-up shows frets as written. Rhythm is taken from column spacing, not from written note values.
+- `node tools/validate-tabtext.js js/app.js` checks that every lesson survives writing as text and reading back, and fuzzes the reader.
