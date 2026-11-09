@@ -611,7 +611,7 @@ function parseTab(text){
   if(isTab(l)){if(!cur){cur={at:i,lines:[]};groups.push(cur)}cur.lines.push(l);return}
   cur=null;let m;
   if((m=/(\d{2,3})\s*bpm|\b(?:bpm|tempo)\s*[:=]?\s*(\d{2,3})\b/i.exec(l)))P.bpm=Math.max(30,Math.min(240,+(m[1]||m[2])));
-  if((m=/\b(?:rhythm|grid|dash(?:es)?)\b[^0-9a-z]{0,6}(1\/4|1\/8|1\/16|quarter|eighth|sixteenth|triplet)/i.exec(l)))P.unit={'1/4':1,quarter:1,'1/8':0.5,eighth:0.5,'1/16':0.25,sixteenth:0.25,triplet:1/3}[m[1].toLowerCase()];
+  if((m=/\b(?:rhythm|grid|dash(?:es)?)\b[^0-9a-z]{0,6}(1\/4|1\/8|1\/16|1\/32|quarter|eighth|sixteenth|triplet)/i.exec(l)))P.unit={'1/4':1,quarter:1,'1/8':0.5,eighth:0.5,'1/16':0.25,sixteenth:0.25,'1/32':0.125,triplet:1/3}[m[1].toLowerCase()];
   if(/^[\sPM.\-|]+$/.test(l)&&/P\.?M/.test(l))pmLines.push({i,l});
  });
  let off=0;
@@ -1048,11 +1048,12 @@ function renderTab(){
 }
 // ---------- Your tab: editor, parts, playback ----------
 const EXAMPLES=[
+ {n:'Happy birthday to you',t:'90 bpm\nrhythm 1/32\ne|--------------------------------------------------|\nB|--------------------------------------------------|\nG|-------------------------0------------------------|\nD|-0-----0-2-------0---------------4----------------|\nA|--------------------------------------------------|\nE|--------------------------------------------------|\n\ne|--------------------------------------------------|\nB|--------------------------------------------------|\nG|-------------------------2-------0----------------|\nD|-0-----0-2-------0--------------------------------|\nA|--------------------------------------------------|\nE|--------------------------------------------------|\n\ne|----------------------------------------------------------|\nB|---------3-------0----------------------------------------|\nG|-------------------------0--------------------------------|\nD|-0-----0-------------------------4-------2----------------|\nA|----------------------------------------------------------|\nE|----------------------------------------------------------|\n\ne|--------------------------------------------------|\nB|-1-----1-0----------------------------------------|\nG|-----------------0-------2-------0----------------|\nD|--------------------------------------------------|\nA|--------------------------------------------------|\nE|--------------------------------------------------|'},
  {n:'Slides (your example)',t:'60 bpm\nE|-3/5-5/3-------------------------------------------|\nB|-3/5-5/3---3/5-5/3p0---3/5-5/3p0-------------------|\nG|-----------2/4-4/2p0---2/4-4/2p0--4----------------|\nD|----------------------------------5----------------|\nA|---------------------------------------------------|\nE|---------------------------------------------------|'},
  {n:'Hammer-ons and pull-offs',t:'80 bpm\ne|-0h3p0-----3h5p3-----|\nB|---------1---------1-|\nG|---0-----------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'},
  {n:'Several staves (riff)',t:'90 bpm\ne|-----------|-----3-3-3---3-3--------3---------|\nB|-----------|-----3-3-3---3-3--------3---------|\nG|-----------|-----0-0-0---0-0--------0-0-------|\nD|-------0---|-2---2-2-2---2-2--------------2---|\nA|---0h2-----|-----2-2-2---2-2------------------|\nE|-----------|-----x-x-x---x-x------------------|\n\ne|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nB|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nG|-----0--0--0--0-0-|--------------|--2---2-2------2-2-2---|\nD|-2---2--2--2--2-2-|--2--0--------|--2---2-2------2-2-2---|\nA|-----2--2--2--2-2-|--------2--0--|--0-------0------------|\nE|-----x--x--x--x-x-|--------------|-----------------------|'},
  {n:'Bend, vibrato, dead note',t:'70 bpm\ne|-8b10r8---7~~~~---5---|\nB|-----------------x---|\nG|---------------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'}];
-const ed={text:EXAMPLES[0].t,bpm:60,unit:0.5,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
+const ed={text:EXAMPLES[0].t,bpm:90,unit:0.125,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
 try{const d=JSON.parse(localStorage.getItem('fc.tab')||'null');if(d&&typeof d.text==='string'&&d.text.length<20000)ed.text=d.text}catch(e){}
 const edSave=()=>{try{localStorage.setItem('fc.tab',JSON.stringify({text:ed.text}))}catch(e){}};
 const edTog=(k,l,on)=>`<button data-ed="${k}" aria-pressed="${on}">${l}</button>`;
@@ -1080,7 +1081,7 @@ function edShell(){
 function edOpts(){
  $('edtogs').innerHTML=edTog('tog:metro','Metronome',ed.metro)+edTog('tog:count','Count-in',ed.count)+edTog('tog:loop','Loop',ed.loop);
  $('edopts').innerHTML=[
-  ['Dash is',[['unit:1','1/4 beat'],['unit:0.5','1/8 beat'],['unit:0.25','1/16 beat']].map(([k,l])=>edTog(k,l,ed.unit===+k.slice(5))).join('')],
+  ['Dash is',[['unit:1','1/4 beat'],['unit:0.5','1/8 beat'],['unit:0.25','1/16 beat'],['unit:0.125','1/32 beat']].map(([k,l])=>edTog(k,l,ed.unit===+k.slice(5))).join('')],
   ['Timing',[['mode:cols','Follow spacing'],['mode:even','Even steps']].map(([k,l])=>edTog(k,l,ed.mode===k.slice(5))).join('')],
   ['Split into parts by',[['split:auto','Auto'],['split:lines','Staff'],['split:bars','Bars'],['split:gaps','Gaps']].map(([k,l])=>edTog(k,l,ed.split===k.slice(6))).join('')]
  ].map(([t,h])=>`<span class="edgrp"><span class="hint">${t}</span>${h}</span>`).join('');
@@ -1252,8 +1253,8 @@ document.addEventListener('click',e=>{
  const cc=e.target.closest('#edpre [data-c]');if(cc){edFrom(+cc.dataset.c);return}
  const b=e.target.closest('button');if(!b||b.disabled||b.closest('#theme,#donate'))return;
  if(b.id==='edplay'){if(tm.playing)tStop();else edPlay(true);return}
- if(b.dataset.edex!==undefined){tStop();ed.text=EXAMPLES[+b.dataset.edex].t;edSave();const t=$('edtext');if(t)t.value=ed.text;edRefresh(true);return}
- if(b.dataset.ed==='open'){tStop();ed.text=asciiTab(tm.mode==='licks'?LICKS[tm.lick].ev:tm.ev);ed.bpm=tm.bpm;ed.sel='all';edSave();tm.mode='mine';renderTab();return}
+ if(b.dataset.edex!==undefined){tStop();ed.text=EXAMPLES[+b.dataset.edex].t;ed.unit=0.5;edSave();const t=$('edtext');if(t)t.value=ed.text;edRefresh(true);return}
+ if(b.dataset.ed==='open'){tStop();ed.text=asciiTab(tm.mode==='licks'?LICKS[tm.lick].ev:tm.ev);ed.bpm=tm.bpm;ed.unit=0.5;ed.sel='all';edSave();tm.mode='mine';renderTab();return}
  if(b.dataset.ed){edClick(b);return}
  if(b.id==='rot'){st.rot=!st.rot;b.setAttribute('aria-pressed',st.rot);render();return}
  if(b.id==='dgtilt'){b.setAttribute('aria-pressed',$('dgstage').classList.toggle('tilt'));return}
