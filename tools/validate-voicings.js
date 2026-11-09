@@ -3,17 +3,20 @@ const fs=require('fs');
 const src=fs.readFileSync(process.argv[2],'utf8').split('\n');
 const cut=src.findIndex(l=>l.startsWith('function diagram'));
 const code=src.slice(0,cut).join('\n').replace("const $=id=>document.getElementById(id);","");
-(0,eval)(code+`;globalThis.API={S,SUF,T,F,OPEN,st,voice,pcOf};`);
-const A=API,S=A.S,SUF=A.SUF,T=A.T,F=A.F,st=A.st,pcOf=A.pcOf,voiceFn=A.voice;
+(0,eval)(code+`;globalThis.API={S,SUF,T,F,OPEN,st,voice,pcOf,OPT5,whyHard};`);
+const A=API,OPT5=A.OPT5,CLASSIC=['maj','min','7','maj7','m7','sus2','sus4','6','m6','5'],S=A.S,SUF=A.SUF,T=A.T,F=A.F,st=A.st,pcOf=A.pcOf,voiceFn=A.voice;
 let bad=0,total=0;const issues={};
 for(const q of Object.keys(T))for(const sh of ['C','A','G','E','D'])for(let r=0;r<12;r++){
-  st.r=r;st.q=q;st.sh=sh;const v=voiceFn();total++;const errs=[];
-  const{fr,fg}=v;
+  st.r=r;st.q=q;st.sh=sh;const v=voiceFn();const{fr,fg}=v;
+  // Classic chords must be clean at every position. For the newer types a shape that a hand cannot play at some position is simply
+  // not offered by the app (its button is disabled), so only the shapes that are offered are checked.
+  if(!CLASSIC.includes(q)&&A.whyHard(fr,fg))continue;
+  total++;const errs=[];
   // chord-tone correctness
   const set=F[q].map(x=>(r+x)%12);
   fr.forEach((f,i)=>{if(f>=0&&!set.includes(pcOf(i,f)))errs.push('non-chord tone on string '+(i+1))});
   const pcs=new Set(fr.map((f,i)=>f<0?null:pcOf(i,f)).filter(x=>x!==null));
-  set.forEach(p=>{if(!pcs.has(p)&&!((q.includes('7')||q.includes('6'))&&p===set[2]))errs.push('missing '+S[p])}); // 5th may be omitted only on 7th and 6th chords
+  set.forEach(p=>{if(!pcs.has(p)&&!(OPT5.includes(q)&&p===set[2]))errs.push('missing '+S[p])}); // 5th may be omitted only on 7th, 9th and 6th chords
   fr.forEach((f,i)=>{
     if(f>0&&!fg[i])errs.push('fretted string '+(i+1)+' has no finger');
     if(f<=0&&fg[i])errs.push('unfretted string '+(i+1)+' has a finger');

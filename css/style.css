@@ -755,3 +755,31 @@ details[open] summary {
 .closesvg .cpalm { fill: var(--root); opacity: .38; stroke: var(--root); stroke-width: 1.5; }
 .closesvg .cpt { fill: var(--fg); font: 700 13px ui-rounded, "Segoe UI", sans-serif; text-anchor: middle; }
 .ccap { margin: 4px 0 0; padding: 8px 12px; background: var(--bg); border-radius: 12px; font-weight: 600; min-height: 2.6em; }
+
+/* Your tab (editor) */
+.edtop{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.edcol{min-width:0}
+.edlbl{display:block;margin:0 0 6px;font-weight:600}
+.edtext,.edpre{box-sizing:border-box;width:100%;height:230px;margin:0;overflow:auto}
+.edtext{display:block;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:inherit;resize:vertical;white-space:pre;tab-size:4}
+.edtext:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+.edpre{white-space:pre;font-size:13px;line-height:1.4;overscroll-behavior:contain}
+.edpre span[data-c]{cursor:pointer;border-radius:2px}
+.edpre span[data-c]:hover{outline:1px solid currentColor}
+.edpre .dim{opacity:.4}
+.edpre .on{background:var(--acc);color:var(--accf);font-weight:700;opacity:1}
+.edwarn{margin:8px 0 4px;font-size:14px;min-height:1.4em}
+.edwarn p{margin:0 0 4px}
+.edwarn ul{margin:4px 0 0;padding-left:20px}
+.edbar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:8px 0}
+.edgrp{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
+.edstat{min-width:8em}
+.edmore summary{cursor:pointer;font-weight:600;padding:4px 0}
+.edbot{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;align-items:start;margin-top:16px}
+.edbot .card{margin:0;min-width:0}
+#edclose .ccap{height:6.4em;overflow:auto;box-sizing:border-box}
+#edsteps{height:310px;overflow:auto;overscroll-behavior:contain;margin:.4em 0 0}
+#edsteps li.on{background:var(--soft);box-shadow:inset 4px 0 0 var(--acc);border-radius:6px}
+#tmode button{white-space:nowrap;padding-left:10px;padding-right:10px}
+@media (max-width:860px){.edtop,.edbot{grid-template-columns:minmax(0,1fr)}.edtext,.edpre{height:180px}#edsteps{height:220px}}
+#edsteps li{padding:3px 8px 3px 4px}
