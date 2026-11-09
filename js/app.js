@@ -528,9 +528,9 @@ function closeDyn(g,st){
  return {strs,gh,dots,pk,pm};
 }
 function closeHTML(ev,o){
- const g=closeGeom(ev,o),spb=60/((o&&o.bpm)||tm.bpm),t00=Math.min(...ev.map(e=>e.t)),st=closeState(ev,t00+0.2/spb,g,spb),dy=closeDyn(g,st);tm.cl={ev,g,spb,t00};
+ const g=closeGeom(ev,o),bx=(o&&o.box)||g,spb=60/((o&&o.bpm)||tm.bpm),t00=Math.min(...ev.map(e=>e.t)),st=closeState(ev,t00+0.2/spb,g,spb),dy=closeDyn(g,st);tm.cl={ev,g,spb,t00};
  st.cap=tm.cl.cap0=g.chains.filter(c=>c[0].t===t00).map(c=>c.map((e,j)=>capOf(c,j,g)).join(' ')).join(' · ');
- return `<figure class="close"><svg class="closesvg" viewBox="0 0 ${g.W} ${g.H}" role="img" aria-label="Close-up of the fretting hand on the neck" style="max-width:${Math.round(g.W*1.5)}px;min-width:${g.N>9?560:0}px">${closeStatic(g).replace(/id="cs(\d)" style="([^"]*)" points=""/g,(m,k,sty)=>`id="cs${k}" style="${sty}" points="${dy.strs[k]}"`)}<g class="cgg">${dy.gh}</g><g class="cdd">${dy.dots}</g><g class="cpa">${dy.pm}</g><g class="cpp">${dy.pk}</g></svg>
+ return `<figure class="close"><svg class="closesvg" viewBox="0 0 ${g.W} ${g.H}" role="img" aria-label="Close-up of the fretting hand on the neck" preserveAspectRatio="xMinYMid meet" style="max-width:${Math.round(bx.W*1.5)}px;min-width:${bx.N>9?560:0}px;aspect-ratio:${bx.W}/${bx.H}">${closeStatic(g).replace(/id="cs(\d)" style="([^"]*)" points=""/g,(m,k,sty)=>`id="cs${k}" style="${sty}" points="${dy.strs[k]}"`)}<g class="cgg">${dy.gh}</g><g class="cdd">${dy.dots}</g><g class="cpa">${dy.pm}</g><g class="cpp">${dy.pk}</g></svg>
  <figcaption class="ccap">${escH(st.cap)}</figcaption></figure>`;
 }
 // Draws one moment into the close-up already on the page.
@@ -603,7 +603,8 @@ function lexTabLine(b,s,ln,cmap,blk,W){
 function parseTab(text){
  const P={warn:[],blocks:[],events:[],chains:[],barCols:[0],ncols:0,cols:[],tuning:[0,0,0,0,0,0],tuned:false,bpm:null,unit:null,ok:false};
  const W=(ln,msg)=>P.warn.push({line:ln+1,msg});
- const raw=String(text||'').replace(/\r\n?/g,'\n').replace(/\t/g,'    ').split('\n');
+ // typographic dashes become '-', and a tab pasted with its line breaks lost (…|B|-…) is cut back into lines
+ const raw=String(text||'').replace(/\r\n?/g,'\n').replace(/[\u2010-\u2015\u2212]/g,'-').replace(/\t/g,'    ').replace(/\|(?:[ ]*\b(?:or|and)\b)?[ ]*(?=[A-Ga-g][#♯b♭]?\|[-0-9xX(<\[~])/g,'|\n').split('\n');
  const isTab=l=>/^\s*(?:[A-Ga-g][#♯b♭]?\s*)?[|:]/.test(l)&&(l.match(/-/g)||[]).length>=3;
  const groups=[],pmLines=[];let cur=null;
  raw.forEach((l,i)=>{
@@ -626,6 +627,7 @@ function parseTab(text){
     const t=[0,0,0,0,0,0];labels.forEach((l,j)=>{const s=sOf(j);t[s]=((labelPc(l)-OPENPC[s]+18)%12)-6});
     if(!blk){P.tuning=t;P.tuned=t.some(Boolean)}else if(t.join()!==P.tuning.join())W(first,'This staff has different string names than the first one. The first tuning is used.');
    }
+   if(blk>0)P.barCols.push(off);
    const isBar=Array.from({length:w},(_,i)=>body.every(b=>b[i]==='|')),cmap=[];let c=0;
    for(let i=0;i<w;i++){
     if(isBar[i]){cmap.push(null);if(i>0&&!isBar[i-1])P.barCols.push(off+c)}
@@ -665,9 +667,10 @@ function layoutTab(P,o){
  Object.values(per).forEach(l=>{l.sort((a,b)=>a.t-b.t);l.forEach((e,i)=>{const nx=l[i+1];e.d=Math.max(unit,Math.min(4,nx?nx.t-e.t:Math.max(unit,Math.min(2,len-e.t))))})});
  const chains=chainsOf(ev);
  const bars=[...new Set(P.barCols.filter(c=>c<P.ncols))].sort((a,b)=>a-b);
- const split=!o.split||o.split==='auto'?(bars.length>1?'bars':'gaps'):o.split;
+ const staffs=P.blocks.map(b=>b.off).filter(c=>c<P.ncols),split=!o.split||o.split==='auto'?(staffs.length>1?'lines':bars.length>1?'bars':'gaps'):o.split;
  let bounds=[0];
- if(split==='bars')bounds=bars.length?bars:[0];
+ if(split==='lines')bounds=staffs.length?staffs:[0];
+ else if(split==='bars')bounds=bars.length?bars:[0];
  else if(split==='gaps'){
   const occ=new Uint8Array(P.ncols+1);ev.forEach(e=>{for(let c=e.col;c<=e.col2;c++)occ[c]=1});
   let prev=-1;for(let c=0;c<P.ncols;c++)if(occ[c]){if(prev>=0&&c-prev-1>=gapMin)bounds.push(c);prev=c}
@@ -1047,31 +1050,40 @@ function renderTab(){
 const EXAMPLES=[
  {n:'Slides (your example)',t:'60 bpm\nE|-3/5-5/3-------------------------------------------|\nB|-3/5-5/3---3/5-5/3p0---3/5-5/3p0-------------------|\nG|-----------2/4-4/2p0---2/4-4/2p0--4----------------|\nD|----------------------------------5----------------|\nA|---------------------------------------------------|\nE|---------------------------------------------------|'},
  {n:'Hammer-ons and pull-offs',t:'80 bpm\ne|-0h3p0-----3h5p3-----|\nB|---------1---------1-|\nG|---0-----------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'},
+ {n:'Several staves (riff)',t:'90 bpm\ne|-----------|-----3-3-3---3-3--------3---------|\nB|-----------|-----3-3-3---3-3--------3---------|\nG|-----------|-----0-0-0---0-0--------0-0-------|\nD|-------0---|-2---2-2-2---2-2--------------2---|\nA|---0h2-----|-----2-2-2---2-2------------------|\nE|-----------|-----x-x-x---x-x------------------|\n\ne|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nB|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nG|-----0--0--0--0-0-|--------------|--2---2-2------2-2-2---|\nD|-2---2--2--2--2-2-|--2--0--------|--2---2-2------2-2-2---|\nA|-----2--2--2--2-2-|--------2--0--|--0-------0------------|\nE|-----x--x--x--x-x-|--------------|-----------------------|'},
  {n:'Bend, vibrato, dead note',t:'70 bpm\ne|-8b10r8---7~~~~---5---|\nB|-----------------x---|\nG|---------------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'}];
 const ed={text:EXAMPLES[0].t,bpm:60,unit:0.5,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
 try{const d=JSON.parse(localStorage.getItem('fc.tab')||'null');if(d&&typeof d.text==='string'&&d.text.length<20000)ed.text=d.text}catch(e){}
 const edSave=()=>{try{localStorage.setItem('fc.tab',JSON.stringify({text:ed.text}))}catch(e){}};
 const edTog=(k,l,on)=>`<button data-ed="${k}" aria-pressed="${on}">${l}</button>`;
 function edShell(){
- return `<section class="card"><div class="bar"><h2>Your tab</h2><span class="hint">Paste a text tab, then press play</span></div>
- <label class="edlbl" for="edtext">Tab text <span class="hint">Six lines, one per string. You may add a line such as “60 bpm” above it.</span></label>
- <textarea id="edtext" class="edtext" rows="9" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="edwarn">${escH(ed.text)}</textarea>
+ return `<section class="card edmain"><div class="bar"><h2>Your tab</h2><span class="hint">Paste a text tab, then press play</span></div>
+ <div class="edtop">
+  <div class="edcol"><label class="edlbl" for="edtext">Tab text <span class="hint">six lines per staff · add “60 bpm” above for tempo</span></label>
+   <textarea id="edtext" class="edtext" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="edwarn">${escH(ed.text)}</textarea></div>
+  <div class="edcol"><div class="edlbl">Follow along <span class="hint">press a note to start there</span></div><pre class="ascii edpre" id="edpre" aria-label="The tab you entered"></pre></div>
+ </div>
  <div id="edwarn" class="edwarn" role="status"></div>
- <div class="row edrow"><span class="hint">Tempo</span><label class="bpm"><input type="range" id="edbpm" min="30" max="200" value="${ed.bpm}" aria-label="Tempo in beats per minute"> <b id="edbpmv">${ed.bpm}</b> BPM</label></div>
- <div class="row edrow" id="edopts"></div>
- <div class="row edrow" id="edparts"></div>
- <div class="row"><button id="edplay" class="go" data-label="▶ Play">▶ Play</button><span id="edstat" class="hint" aria-live="polite"></span></div>
+ <div class="edbar">
+  <button id="edplay" class="go" data-label="▶ Play">▶ Play</button>
+  <label class="bpm"><input type="range" id="edbpm" min="30" max="200" value="${ed.bpm}" aria-label="Tempo in beats per minute"> <b id="edbpmv">${ed.bpm}</b> BPM</label>
+  <span class="edgrp" id="edtogs"></span><span id="edstat" class="hint edstat" aria-live="polite"></span>
+ </div>
+ <div class="edbar" id="edparts"></div>
+ <details class="edmore"><summary>Rhythm and parts options</summary><div class="edbar" id="edopts"></div></details>
  </section>
- <section class="card" id="edcard"><h3 class="ch">On the neck <span class="hint" id="edpartname"></span></h3><div id="edclose"></div></section>
- <div class="learn"><div class="card"><h2>Move by move</h2><ol class="steps" id="edsteps"></ol></div><div class="card"><h2>Follow along</h2><p class="hint">Press any note to start playing from there.</p><pre class="ascii edpre" id="edpre" aria-label="The tab you entered"></pre></div></div>`;
+ <div class="edbot">
+  <section class="card" id="edcard"><h3 class="ch">On the neck <span class="hint" id="edpartname"></span></h3><div id="edclose"></div></section>
+  <section class="card"><h2>Move by move</h2><ol class="steps" id="edsteps"></ol></section>
+ </div>`;
 }
 function edOpts(){
+ $('edtogs').innerHTML=edTog('tog:metro','Metronome',ed.metro)+edTog('tog:count','Count-in',ed.count)+edTog('tog:loop','Loop',ed.loop);
  $('edopts').innerHTML=[
   ['Dash is',[['unit:1','1/4 beat'],['unit:0.5','1/8 beat'],['unit:0.25','1/16 beat']].map(([k,l])=>edTog(k,l,ed.unit===+k.slice(5))).join('')],
   ['Timing',[['mode:cols','Follow spacing'],['mode:even','Even steps']].map(([k,l])=>edTog(k,l,ed.mode===k.slice(5))).join('')],
-  ['Parts',[['split:auto','Auto'],['split:bars','Bars'],['split:gaps','Gaps']].map(([k,l])=>edTog(k,l,ed.split===k.slice(6))).join('')],
-  ['',edTog('tog:metro','Metronome',ed.metro)+edTog('tog:count','Count-in',ed.count)+edTog('tog:loop','Loop',ed.loop)]
- ].map(([t,h])=>`<span class="edgrp">${t?`<span class="hint">${t}</span>`:''}${h}</span>`).join('');
+  ['Split into parts by',[['split:auto','Auto'],['split:lines','Staff'],['split:bars','Bars'],['split:gaps','Gaps']].map(([k,l])=>edTog(k,l,ed.split===k.slice(6))).join('')]
+ ].map(([t,h])=>`<span class="edgrp"><span class="hint">${t}</span>${h}</span>`).join('');
 }
 function edModel(textChanged){
  const P=parseTab(ed.text);
@@ -1089,7 +1101,7 @@ function edWarn(){
 }
 function edPartsUI(){
  const L=ed.L;
- $('edparts').innerHTML=L?`<span class="edgrp"><span class="hint">Play</span>${edTog('sel:all','All parts',ed.sel==='all')}${L.parts.map((p,i)=>edTog('sel:'+i,'Part '+(i+1),ed.sel===i)).join('')}</span>`:'';
+ $('edparts').innerHTML=L?`<span class="edgrp"><span class="hint">Play</span>${edTog('sel:all','All parts',ed.sel==='all')}${L.parts.map((p,i)=>edTog('sel:'+i,(L.split==='lines'?'Line ':'Part ')+(i+1),ed.sel===i)).join('')}</span>`:'';
  $('edplay').disabled=!L;
 }
 function edPre(){
@@ -1101,21 +1113,28 @@ function edPre(){
 function edShowPart(i){
  const L=ed.L;if(!L||!L.parts[i])return;ed.cur=i;ed.step=-1;
  const p=L.parts[i];
- $('edclose').innerHTML=closeHTML(p.ev,{names:true,bpm:ed.bpm});
- $('edpartname').textContent=L.parts.length>1?'Part '+(i+1)+' of '+L.parts.length:'';
+ if(!L.box){const gs=L.parts.map(q=>closeGeom(q.ev,{names:true}));L.box={W:Math.max(...gs.map(q=>q.W)),H:Math.max(...gs.map(q=>q.H)),N:Math.max(...gs.map(q=>q.N))}}
+ $('edclose').innerHTML=closeHTML(p.ev,{names:true,bpm:ed.bpm,box:L.box});
+ $('edpartname').textContent=L.parts.length>1?(L.split==='lines'?'Line ':'Part ')+(i+1)+' of '+L.parts.length:'';
  $('edsteps').innerHTML=partSteps(p).map(s=>`<li>${s.txt.map(escH).join('<br>')}</li>`).join('');
 }
 function edRefresh(textChanged){
  tStop();edModel(textChanged);edWarn();edOpts();edPartsUI();edPre();
  if(ed.L)edShowPart(ed.sel==='all'?0:ed.sel);else{$('edclose').innerHTML='<p class="hint">The fretting hand appears here once the tab is read.</p>';$('edsteps').innerHTML='';$('edpartname').textContent=''}
 }
+function edKeep(box,el){ // scrolls only inside its own box, never the page
+ if(!box||!el||!el.getBoundingClientRect)return;
+ const b=box.getBoundingClientRect(),r=el.getBoundingClientRect();
+ if(r.left<b.left+16)box.scrollLeft+=r.left-b.left-40;else if(r.right>b.right-16)box.scrollLeft+=r.right-b.right+60;
+ if(r.top<b.top+4)box.scrollTop+=r.top-b.top-8;else if(r.bottom>b.bottom-4)box.scrollTop+=r.bottom-b.bottom+8;
+}
 function edHL(beat){ // marks the column and the step that sound now
  const L=ed.L,p=L.parts[ed.cur];if(!p)return;
  const c=L.slotCol[Math.max(0,L.slotAt(beat))],pre=$('edpre');
- if(c!==ed.col){pre.querySelectorAll('.on').forEach(e=>e.classList.remove('on'));pre.querySelectorAll(`[data-c="${c}"]`).forEach(e=>e.classList.add('on'));ed.col=c}
+ if(c!==ed.col){pre.querySelectorAll('.on').forEach(e=>e.classList.remove('on'));const cs=pre.querySelectorAll(`[data-c="${c}"]`);cs.forEach(e=>e.classList.add('on'));ed.col=c;if(cs[0])edKeep(pre,cs[0])}
  const li=$('edsteps').children;let k=-1;ed.steps=ed.steps&&ed.steps.p===p?ed.steps:{p,t:partSteps(p).map(s=>s.t)};
  ed.steps.t.forEach((t,j)=>{if(t<=beat+1e-9)k=j});
- if(k!==ed.step){if(li[ed.step])li[ed.step].classList.remove('on');if(li[k]){li[k].classList.add('on');li[k].scrollIntoView&&li[k].scrollIntoView({block:'nearest'})}ed.step=k}
+ if(k!==ed.step){if(li[ed.step])li[ed.step].classList.remove('on');if(li[k]){li[k].classList.add('on');edKeep($('edsteps'),li[k])}ed.step=k}
 }
 function edStop(){ // called by tStop
  const pre=$('edpre');if(pre)pre.querySelectorAll('.on').forEach(e=>e.classList.remove('on'));ed.col=-1;
@@ -1140,7 +1159,7 @@ function edPlay(first){
   else{const sg=seg.find(x=>ts>=x.start&&ts<x.start+x.len)||seg[seg.length-1];
    if(ed.cur!==sg.p.i)edShowPart(sg.p.i);
    const b=sg.p.t0+Math.min(ts-sg.start,sg.len);closeDraw(sg.p.ev,b,spb);edHL(b);
-   $('edstat').textContent=(ed.loop?'Looping · ':'')+(seg.length>1?'Part '+(sg.p.i+1):'Playing')}
+   $('edstat').textContent=(ed.loop?'Looping · ':'')+(seg.length>1?(L.split==='lines'?'Line ':'Part ')+(sg.p.i+1):'Playing')}
   tm.raf=RAF(loop)};
  tm.raf=RAF(loop);
 }

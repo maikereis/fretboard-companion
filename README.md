@@ -190,7 +190,8 @@ Released under the [PolyForm Shield License 1.0.0](https://polyformproject.org/l
 Paste a plain-text tab (six lines, one per string) into **Tab → My tab** and the app shows, move by move, which finger goes where, then plays it.
 
 - **Reads** numbers, `h` hammer-on, `p` pull-off, `/` `\\` slides (a mark glued to the note links two notes, a mark with dashes before the number is a slide-in), `b` bend, `pb` pre-bend, `r` release, `~` vibrato, `x` dead note, `<12>` harmonic, `t5` tap, `tr7` trill and a `P.M.---|` line for palm muting.
-- **Parts:** split by bars (`|`) or by gaps of three dashes or more. Play all parts or one at a time, with loop, metronome and a count-in. Press any note in "Follow along" to start from there.
+- **Several staves:** paste as many six-line staves as you like, one after another or with blank lines or an “or” between them. Typographic dashes (—) are accepted, and a tab whose line breaks were lost when copying is cut back into lines.
+- **Parts:** by default each staff is one part. You can also split by bars (`|`) or by gaps of three dashes or more. Play all parts or one at a time, with loop, metronome and a count-in. Press any note in "Follow along" to start from there.
 - **Rhythm and tempo:** a line such as `60 bpm` above the tab sets the tempo, and `rhythm 1/16` sets the dash length. Timing either follows the spacing of the dashes or uses even steps.
 - **Limits:** other symbols are skipped with a message. Tuning is read from the string names, but the close-up shows frets as written. Rhythm is taken from column spacing, not from written note values.
 - `node tools/validate-tabtext.js js/app.js` checks that every lesson survives writing as text and reading back, and fuzzes the reader.

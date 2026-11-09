@@ -42,6 +42,15 @@ E|---------------------------------------------------|`;
  const k=P.events.map(e=>(e.x||'-')+e.f).join(' ');if(k!=='slin5 -5 /7 slout'&&k!=='slin5 -5 /7 -5 slout'&&!/slin5/.test(k))fail('slide forms: '+k);}
 {const P=X.parseTab('e|-0-2-|\nB|-----|\nG|-----|\nD|-----|\nA|-----|\nD|-0---|');n++;
  if(!P.tuned||P.tuning[0]!==-2)fail('drop D tuning '+P.tuning);}
+// several staves: with typographic dashes, with "or" between tabs, and with the line breaks lost
+{const staves=['e|-----------|-----3-3-3---3-3---|\nB|-----------|-----3-3-3---3-3---|\nG|-----------|-----0-0-0---0-0---|\nD|-------0---|-2---2-2-2---2-2---|\nA|---0h2-----|-----2-2-2---2-2---|\nE|-----------|-----x-x-x---x-x---|',
+ 'e|-----3--3-|---3--3--|\nB|-----3--3-|---3--3--|\nG|-----0--0-|---0--0--|\nD|-2---2--2-|---2--2--|\nA|---0—2p0--|---2--2--|\nE|-----x--x-|---x--x--|'];
+ const base=staves.join('\n\n'),variants={nl:base,dashes:base,flat:base.replace(/\n\n/g,'  ').replace(/\n/g,''),or:staves.join('\n or \n'),or_flat:staves.join('   or ').replace(/\n/g,'')};
+ for(const [k,t] of Object.entries(variants)){n++;const P=X.parseTab(t),L=X.layoutTab(P,{unit:0.5});
+  if(P.blocks.length!==2)fail('staves '+k+': '+P.blocks.length);if(P.warn.length)fail('staves '+k+' warns '+JSON.stringify(P.warn));
+  if(L.split!=='lines'||L.parts.length!==2)fail('staves '+k+' parts '+L.split+' '+L.parts.length);
+  if(X.layoutTab(P,{unit:0.5,split:'bars'}).parts.length<3)fail('staves '+k+' bars');
+  if(P.events.filter(e=>e.x==='p').length!==1||P.events.filter(e=>e.x==='h').length!==1)fail('staves '+k+' h/p')}}
 // junk never crashes
 let seed=7;const rnd=()=>(seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff;
 const alpha='-|0123456789hpbr/\\~xX()<>[]tT .\nPM:*=abcdefg#';
