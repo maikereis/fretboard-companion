@@ -678,7 +678,7 @@ function layoutTab(P,o){
  const parts=bounds.map(()=>[]);
  chains.forEach(ch=>{let k=0;bounds.forEach((b,i)=>{if(ch[0].col>=b)k=i});parts[k].push(ch)});
  const out=parts.filter(p=>p.length).map(p=>{const evs=p.flat();
-  return{ev:evs,chains:p,t0:Math.min(...p.map(c=>c[0].t)),t1:Math.max(...evs.map(e=>e.t+Math.min(e.d,2))),c0:Math.min(...evs.map(e=>e.col)),c1:Math.max(...evs.map(e=>e.col2))}});
+  return{ev:evs,chains:p,t0:Math.min(...p.map(c=>c[0].t)),t1:Math.max(...evs.map(e=>e.t+Math.min(e.d,1))),c0:Math.min(...evs.map(e=>e.col)),c1:Math.max(...evs.map(e=>e.col2))}});
  out.forEach((p,i)=>p.i=i);
  const slotT=slotCol.map((c,k)=>even?k*unit:c*unit);
  const slotAt=beat=>{let lo=0,hi=slotT.length-1,r=-1;while(lo<=hi){const m=(lo+hi)>>1;if(slotT[m]<=beat+1e-9){r=m;lo=m+1}else hi=m-1}return r};
@@ -1053,7 +1053,7 @@ const EXAMPLES=[
  {n:'Hammer-ons and pull-offs',t:'80 bpm\ne|-0h3p0-----3h5p3-----|\nB|---------1---------1-|\nG|---0-----------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'},
  {n:'Several staves (riff)',t:'90 bpm\ne|-----------|-----3-3-3---3-3--------3---------|\nB|-----------|-----3-3-3---3-3--------3---------|\nG|-----------|-----0-0-0---0-0--------0-0-------|\nD|-------0---|-2---2-2-2---2-2--------------2---|\nA|---0h2-----|-----2-2-2---2-2------------------|\nE|-----------|-----x-x-x---x-x------------------|\n\ne|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nB|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nG|-----0--0--0--0-0-|--------------|--2---2-2------2-2-2---|\nD|-2---2--2--2--2-2-|--2--0--------|--2---2-2------2-2-2---|\nA|-----2--2--2--2-2-|--------2--0--|--0-------0------------|\nE|-----x--x--x--x-x-|--------------|-----------------------|'},
  {n:'Bend, vibrato, dead note',t:'70 bpm\ne|-8b10r8---7~~~~---5---|\nB|-----------------x---|\nG|---------------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'}];
-const ed={text:EXAMPLES[0].t,bpm:90,unit:0.125,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
+const ed={text:EXAMPLES[0].t,bpm:60,unit:0.5,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
 try{const d=JSON.parse(localStorage.getItem('fc.tab')||'null');if(d&&typeof d.text==='string'&&d.text.length<20000)ed.text=d.text}catch(e){}
 const edSave=()=>{try{localStorage.setItem('fc.tab',JSON.stringify({text:ed.text}))}catch(e){}};
 const edTog=(k,l,on)=>`<button data-ed="${k}" aria-pressed="${on}">${l}</button>`;
@@ -1131,7 +1131,7 @@ function edKeep(box,el){ // scrolls only inside its own box, never the page
 }
 function edHL(beat){ // marks the column and the step that sound now
  const L=ed.L,p=L.parts[ed.cur];if(!p)return;
- const c=L.slotCol[Math.max(0,L.slotAt(beat))],pre=$('edpre');
+ const c=Math.max(p.c0,Math.min(p.c1,L.slotCol[Math.max(0,L.slotAt(beat))])),pre=$('edpre'); // stays inside its own part, even while the last note rings on
  if(c!==ed.col){pre.querySelectorAll('.on').forEach(e=>e.classList.remove('on'));const cs=pre.querySelectorAll(`[data-c="${c}"]`);cs.forEach(e=>e.classList.add('on'));ed.col=c;if(cs[0])edKeep(pre,cs[0])}
  const li=$('edsteps').children;let k=-1;ed.steps=ed.steps&&ed.steps.p===p?ed.steps:{p,t:partSteps(p).map(s=>s.t)};
  ed.steps.t.forEach((t,j)=>{if(t<=beat+1e-9)k=j});
