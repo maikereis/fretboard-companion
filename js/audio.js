@@ -222,6 +222,8 @@ const Sound = (() => {
     g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
     o.connect(g); g.connect(ctx.destination);
     o.start(time); o.stop(time + 0.06);
+    // calling the result cancels this tick, even if it has not sounded yet
+    return () => { try { o.stop(); } catch (e) {} try { o.disconnect(); g.disconnect(); } catch (e) {} };
   }
 
   // ---- Playing a written lick ------------------------------------------------------------------------------
