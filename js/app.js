@@ -894,8 +894,8 @@ function pAdd(off,q){if(pr.slots.length>=16)return;pr.slots.push({off,q});pr.sel
 function pDel(){if(!pr.slots.length)return;pr.slots.splice(pr.sel,1);pr.sel=Math.max(0,pr.sel-1);pEdited()}
 function pEnter(){if(!pr.started){pr.started=true;pr.key=st.r;pLoad(0)}else{pRefresh();applySlot(pr.sel)}}
 // Scheduler: a short timer looks ~0.2 s ahead and books notes on the audio clock, so timing stays steady even if the page is busy.
-let pTimer=null,pNext=0,pBeat=0,pTos=[];
-function pStop(){clearInterval(pTimer);pTimer=null;pTos.forEach(clearTimeout);pTos=[];if(pr.playing){pr.playing=false;pr.cur=-1;if(st.view==='prog')renderProg()}}
+let pTimer=null,pNext=0,pBeat=0,pTos=[],pTk=[];
+function pStop(){clearInterval(pTimer);pTimer=null;pTos.forEach(clearTimeout);pTos=[];pTk.forEach(f=>{if(f)f()});pTk=[];if(pr.playing){pr.playing=false;pr.cur=-1;if(st.view==='prog')renderProg()}}
 function pStart(){if(!pr.slots.length)return;pStop();pr.playing=true;pBeat=0;pRefresh();pNext=Sound.now()+0.1;pTimer=setInterval(pTick,25);pTick();renderProg()}
 function pTick(){
  while(pNext<Sound.now()+0.2){
@@ -906,7 +906,7 @@ function pTick(){
 function pSchedule(n,t){
  const idx=Math.floor(n/pr.beats)%pr.slots.length,beat=n%pr.beats,o=pr.vo[idx];if(!o)return;
  const mid=o.v.fr.map((f,i)=>f<0?null:MID[i]+f).filter(m=>m!==null),spb=60/pr.bpm;
- if(pr.click)Sound.tick(t,beat===0);
+ if(pr.click){pTk.push(Sound.tick(t,beat===0));if(pTk.length>16)pTk.shift()}
  if(pr.style==='arp'){const seq=[...mid,...mid.slice(1,-1).reverse()];for(let h=0;h<2;h++)Sound.noteAt(seq[(beat*2+h)%seq.length],t+h*spb/2,h?.7:.9)}
  else if(pr.style==='beat'||beat===0)Sound.strumAt(mid,t,.03,beat===0?1:.75);
  pTos.push(setTimeout(()=>{if(!pr.playing)return;if(beat===0){pr.sel=idx;applySlot(idx);render();flash(0.03)}paintBeat(beat)},Math.max(0,(t-Sound.now())*1000)));
@@ -958,7 +958,9 @@ const tm={mode:'learn',tech:'hammer',ev:null,lick:0,bpm:70,playing:false,handle:
 const TBY={};TECH.forEach(t=>TBY[t.id]=t);
 const tChips=ids=>ids.map(i=>`<span class="chip"><b>${escH(TBY[i].sym)}</b> ${escH(TBY[i].name)}</span>`).join('');
 const RAF=f=>(window.requestAnimationFrame||(g=>setTimeout(g,16)))(f),CAF=h=>(window.cancelAnimationFrame||clearTimeout)(h);
+const tickOff=()=>{(tm.ticks||[]).forEach(f=>{if(f)f()});tm.ticks=[]}; // metronome ticks are booked ahead on the audio clock, so they must be cancelled one by one
 function tStop(){
+ tickOff();
  if(tm.raf){CAF(tm.raf);tm.raf=0}
  if(tm.handle){tm.handle.stop();tm.handle=null}
  tm.tos.forEach(clearTimeout);tm.tos=[];tm.playing=false;
@@ -1147,12 +1149,12 @@ function edStop(){ // called by tStop
 function edPlay(first){
  const L=ed.L;if(!L)return;
  const was=tm.playing&&!first;
- if(!was)tStop();else{if(tm.raf)CAF(tm.raf);if(tm.handle)tm.handle.stop();tm.tos.forEach(clearTimeout);tm.tos=[]}
+ if(!was)tStop();else{tickOff();if(tm.raf)CAF(tm.raf);if(tm.handle)tm.handle.stop();tm.tos.forEach(clearTimeout);tm.tos=[]}
  const parts=ed.sel==='all'?L.parts:[L.parts[ed.sel]],spb=60/ed.bpm,ci=first&&ed.count?4:0,seg=[],all=[];let off=ci;
  parts.forEach(p=>{const len=Math.max(1,Math.ceil(p.t1-p.t0-1e-9));seg.push({p,start:off,len});p.ev.forEach(e=>all.push(Object.assign({},e,{t:e.t-p.t0+off})));off+=len});
  const total=off,t0=Sound.now()+0.12;
  tm.handle=Sound.lickAt(withMT(all,ed.P.tuning),t0,spb);tm.playing=true;
- for(let k=0;k<total;k++)if(k<ci||ed.metro)Sound.tick(t0+k*spb,k%4===0);
+ tm.ticks=[];for(let k=0;k<total;k++)if(k<ci||ed.metro)tm.ticks.push(Sound.tick(t0+k*spb,k%4===0));
  $('edplay').textContent='■ Stop';
  tm.tos.push(setTimeout(()=>{if(ed.loop)edPlay(false);else tStop()},Math.max(0,(t0+total*spb+0.3-Sound.now())*1000)));
  const loop=()=>{if(!tm.playing)return;const ts=(Sound.now()-t0)/spb;
