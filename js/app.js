@@ -1055,7 +1055,7 @@ const EXAMPLES=[
  {n:'Hammer-ons and pull-offs',t:'80 bpm\ne|-0h3p0-----3h5p3-----|\nB|---------1---------1-|\nG|---0-----------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'},
  {n:'Several staves (riff)',t:'90 bpm\ne|-----------|-----3-3-3---3-3--------3---------|\nB|-----------|-----3-3-3---3-3--------3---------|\nG|-----------|-----0-0-0---0-0--------0-0-------|\nD|-------0---|-2---2-2-2---2-2--------------2---|\nA|---0h2-----|-----2-2-2---2-2------------------|\nE|-----------|-----x-x-x---x-x------------------|\n\ne|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nB|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nG|-----0--0--0--0-0-|--------------|--2---2-2------2-2-2---|\nD|-2---2--2--2--2-2-|--2--0--------|--2---2-2------2-2-2---|\nA|-----2--2--2--2-2-|--------2--0--|--0-------0------------|\nE|-----x--x--x--x-x-|--------------|-----------------------|'},
  {n:'Bend, vibrato, dead note',t:'70 bpm\ne|-8b10r8---7~~~~---5---|\nB|-----------------x---|\nG|---------------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'}];
-const ed={text:EXAMPLES[0].t,bpm:60,unit:0.5,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
+const ed={text:EXAMPLES[0].t,bpm:60,unit:0.5,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,mk:{a:null,b:null},cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
 try{const d=JSON.parse(localStorage.getItem('fc.tab')||'null');if(d&&typeof d.text==='string'&&d.text.length<20000)ed.text=d.text}catch(e){}
 const edSave=()=>{try{localStorage.setItem('fc.tab',JSON.stringify({text:ed.text}))}catch(e){}};
 const edTog=(k,l,on)=>`<button data-ed="${k}" aria-pressed="${on}">${l}</button>`;
@@ -1064,7 +1064,7 @@ function edShell(){
  <div class="edtop">
   <div class="edcol"><label class="edlbl" for="edtext">Tab text <span class="hint">six lines per staff · add “60 bpm” above for tempo</span></label>
    <textarea id="edtext" class="edtext" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="edwarn">${escH(ed.text)}</textarea></div>
-  <div class="edcol"><div class="edlbl">Follow along <span class="hint">press a note to start there</span></div><pre class="ascii edpre" id="edpre" aria-label="The tab you entered"></pre></div>
+  <div class="edcol"><div class="edlbl edlbl2">Follow along <span class="hint" id="edmkh"></span><button id="edmkc" data-ed="mkclear" hidden>Clear</button></div><pre class="ascii edpre" id="edpre" aria-label="The tab you entered"></pre></div>
  </div>
  <div id="edwarn" class="edwarn" role="status"></div>
  <div class="edbar">
@@ -1111,7 +1111,7 @@ function edPre(){
  const P=ed.P,L=ed.L;if(!L){$('edpre').textContent='';return}
  const inSel=c=>ed.sel==='all'||(L.parts[ed.sel]&&c>=L.parts[ed.sel].c0&&c<=L.parts[ed.sel].c1);
  $('edpre').innerHTML=P.blocks.map(b=>[0,1,2,3,4,5].map(j=>escH(b.labels[j]||' ')+'|'+[...b.body[j]].map((ch,i)=>{const c=b.cmap[i];return c==null?escH(ch):`<span data-c="${c}"${inSel(c)?'':' class="dim"'}>${escH(ch)}</span>`}).join('')).join('\n')).join('\n\n');
- ed.col=-1;
+ ed.col=-1;edMarks();
 }
 function edShowPart(i){
  const L=ed.L;if(!L||!L.parts[i])return;ed.cur=i;ed.step=-1;
@@ -1122,7 +1122,7 @@ function edShowPart(i){
  $('edsteps').innerHTML=partSteps(p).map(s=>`<li>${s.txt.map(escH).join('<br>')}</li>`).join('');
 }
 function edRefresh(textChanged){
- tStop();edModel(textChanged);edWarn();edOpts();edPartsUI();edPre();
+ tStop();if(textChanged)ed.mk={a:null,b:null};edModel(textChanged);edWarn();edOpts();edPartsUI();edPre();
  if(ed.L)edShowPart(ed.sel==='all'?0:ed.sel);else{$('edclose').innerHTML='<p class="hint">The fretting hand appears here once the tab is read.</p>';$('edsteps').innerHTML='';$('edpartname').textContent=''}
 }
 function edKeep(box,el){ // scrolls only inside its own box, never the page
@@ -1133,7 +1133,7 @@ function edKeep(box,el){ // scrolls only inside its own box, never the page
 }
 function edHL(beat){ // marks the column and the step that sound now
  const L=ed.L,p=L.parts[ed.cur];if(!p)return;
- const c=Math.max(p.c0,Math.min(p.c1,L.slotCol[Math.max(0,L.slotAt(beat))])),pre=$('edpre'); // stays inside its own part, even while the last note rings on
+ const lo=ed.mk.a==null?p.c0:Math.max(p.c0,ed.mk.a),hi=ed.mk.b==null?p.c1:Math.min(p.c1,ed.mk.b),c=Math.min(hi,Math.max(lo,L.slotCol[Math.max(0,L.slotAt(beat))])),pre=$('edpre'); // stays inside its own part and markers, even while the last note rings on
  if(c!==ed.col){pre.querySelectorAll('.on').forEach(e=>e.classList.remove('on'));const cs=pre.querySelectorAll(`[data-c="${c}"]`);cs.forEach(e=>e.classList.add('on'));ed.col=c;if(cs[0])edKeep(pre,cs[0])}
  const li=$('edsteps').children;let k=-1;ed.steps=ed.steps&&ed.steps.p===p?ed.steps:{p,t:partSteps(p).map(s=>s.t)};
  ed.steps.t.forEach((t,j)=>{if(t<=beat+1e-9)k=j});
@@ -1150,8 +1150,12 @@ function edPlay(first){
  const L=ed.L;if(!L)return;
  const was=tm.playing&&!first;
  if(!was)tStop();else{tickOff();if(tm.raf)CAF(tm.raf);if(tm.handle)tm.handle.stop();tm.tos.forEach(clearTimeout);tm.tos=[]}
+ const lo=ed.mk.a==null?-1e9:ed.mk.a,hi=ed.mk.b==null?1e9:ed.mk.b; // markers: only notes that start between them are played
  const parts=ed.sel==='all'?L.parts:[L.parts[ed.sel]],spb=60/ed.bpm,ci=first&&ed.count?4:0,seg=[],all=[];let off=ci;
- parts.forEach(p=>{const len=Math.max(1,Math.ceil(p.t1-p.t0-1e-9));seg.push({p,start:off,len});p.ev.forEach(e=>all.push(Object.assign({},e,{t:e.t-p.t0+off})));off+=len});
+ parts.forEach(p=>{const cs=p.chains.filter(c=>c[0].col>=lo&&c[0].col<=hi);if(!cs.length)return;
+  const evs=cs.flat(),b0=Math.min(...cs.map(c=>c[0].t)),t1=Math.max(...evs.map(e=>e.t+Math.min(e.d,1))),len=Math.max(1,Math.ceil(t1-b0-1e-9));
+  seg.push({p,start:off,len,b0});evs.forEach(e=>all.push(Object.assign({},e,{t:e.t-b0+off})));off+=len});
+ if(!seg.length){tStop();$('edstat').textContent='No notes there';return}
  const total=off,t0=Sound.now()+0.12;
  tm.handle=Sound.lickAt(withMT(all,ed.P.tuning),t0,spb);tm.playing=true;
  tm.ticks=[];for(let k=0;k<total;k++)if(k<ci||ed.metro)tm.ticks.push(Sound.tick(t0+k*spb,k%4===0));
@@ -1161,21 +1165,37 @@ function edPlay(first){
   if(ts<0||ts<ci){const n=Math.ceil(ci-Math.max(ts,0));$('edstat').textContent='Count-in… '+n}
   else{const sg=seg.find(x=>ts>=x.start&&ts<x.start+x.len)||seg[seg.length-1];
    if(ed.cur!==sg.p.i)edShowPart(sg.p.i);
-   const b=sg.p.t0+Math.min(ts-sg.start,sg.len);closeDraw(sg.p.ev,b,spb);edHL(b);
+   const b=sg.b0+Math.min(ts-sg.start,sg.len);closeDraw(sg.p.ev,b,spb);edHL(b);
    $('edstat').textContent=(ed.loop?'Looping · ':'')+(seg.length>1?(L.split==='lines'?'Line ':'Part ')+(sg.p.i+1):'Playing')}
   tm.raf=RAF(loop)};
  tm.raf=RAF(loop);
 }
-function edFrom(col){
- const L=ed.L;if(!L)return;
- let i=L.parts.findIndex(p=>col>=p.c0&&col<=p.c1);if(i<0)i=Math.max(0,L.parts.findIndex(p=>p.c0>col));
- ed.sel=i;edPartsUI();edPre();edShowPart(i);edPlay(false);
+// The orange bars in "Follow along": the first click sets where to start, the second where to stop (and turns the loop on). A third click starts over.
+function edMarks(){
+ const pre=$('edpre');if(!pre)return;const {a,b}=ed.mk;
+ pre.querySelectorAll('.mka,.mkb,.rng').forEach(e=>e.classList.remove('mka','mkb','rng'));
+ if(a!=null)pre.querySelectorAll('[data-c]').forEach(e=>{const c=+e.dataset.c;if(c===a)e.classList.add('mka');if(c===b)e.classList.add('mkb');if(b!=null&&c>a&&c<b)e.classList.add('rng')});
+ const h=$('edmkh'),x=$('edmkc');
+ if(h)h.textContent=a==null?'click a note to set the start':b==null?'start set · click again for the end':ed.loop?'section set · looping':'section set';
+ if(x)x.hidden=a==null;
+}
+function edMark(col){
+ const L=ed.L;if(!L)return;const mk=ed.mk;
+ if(mk.a!=null&&mk.b==null&&col===mk.a)mk.a=null; // the same place again takes the bar away
+ else if(mk.a==null||mk.b!=null){mk.a=col;mk.b=null}
+ else{mk.b=Math.max(col,mk.a);mk.a=Math.min(col,mk.a);ed.loop=true;edOpts()}
+ const was=ed.sel;ed.sel='all';
+ if(was!=='all'){edPartsUI();edPre()}else edMarks();
+ if(mk.a==null)return;
+ if(tm.playing)edPlay(false);
+ else{const i=L.parts.findIndex(p=>p.chains.some(c=>c[0].col>=mk.a));if(i>=0)edShowPart(i)}
 }
 function edClick(b){
  const [k,v]=b.dataset.ed.split(':');
+ if(k==='mkclear'){ed.mk={a:null,b:null};edMarks();return}
  if(k==='unit')ed.unit=+v;else if(k==='mode')ed.mode=v;else if(k==='split')ed.split=v;
- else if(k==='sel'){ed.sel=v==='all'?'all':+v;tStop();edPartsUI();edPre();edShowPart(ed.sel==='all'?0:ed.sel);return}
- else if(k==='tog'){ed[v]=!ed[v];edOpts();if(v==='metro'&&tm.playing)edPlay(false);return}
+ else if(k==='sel'){ed.sel=v==='all'?'all':+v;ed.mk={a:null,b:null};tStop();edPartsUI();edPre();edShowPart(ed.sel==='all'?0:ed.sel);return}
+ else if(k==='tog'){ed[v]=!ed[v];edOpts();edMarks();if(v==='metro'&&tm.playing)edPlay(false);return}
  edRefresh(false);
 }
 function renderView(){
@@ -1252,7 +1272,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('click',e=>{
  const c=e.target.closest('[data-midi]');
  if(c){Sound.note(+c.dataset.midi);hit(c);return}
- const cc=e.target.closest('#edpre [data-c]');if(cc){edFrom(+cc.dataset.c);return}
+ const cc=e.target.closest('#edpre [data-c]');if(cc){edMark(+cc.dataset.c);return}
  const b=e.target.closest('button');if(!b||b.disabled||b.closest('#theme,#donate'))return;
  if(b.id==='edplay'){if(tm.playing)tStop();else edPlay(true);return}
  if(b.dataset.edex!==undefined){tStop();ed.text=EXAMPLES[+b.dataset.edex].t;ed.unit=0.5;edSave();const t=$('edtext');if(t)t.value=ed.text;edRefresh(true);return}
