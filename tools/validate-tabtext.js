@@ -51,6 +51,13 @@ E|---------------------------------------------------|`;
   if(L.split!=='lines'||L.parts.length!==2)fail('staves '+k+' parts '+L.split+' '+L.parts.length);
   if(X.layoutTab(P,{unit:0.5,split:'bars'}).parts.length<3)fail('staves '+k+' bars');
   if(P.events.filter(e=>e.x==='p').length!==1||P.events.filter(e=>e.x==='h').length!==1)fail('staves '+k+' h/p')}}
+// held bends: 5b7-7r5p3 is one pick, a bend that is held, a release and a pull-off (the repeated 7 is not a new note)
+{const mk=l=>X.parseTab('e|'+l+'|\nB|'+'-'.repeat(l.length)+'|\nG|'+'-'.repeat(l.length)+'|\nD|'+'-'.repeat(l.length)+'|\nA|'+'-'.repeat(l.length)+'|\nE|'+'-'.repeat(l.length)+'|');
+ const sum=P=>P.events.map(e=>(e.x||'')+e.f+(e.bend?'b'+e.bend:'')+(e.pb?'pb'+e.pb:'')+(e.rel?'r':'')+(e.held?'H':'')).join(' ');
+ const cases=[['-5b7-7r5p3-5---','5b2rH p3 5'],['-5b7-7------','5b2H'],['-5pb7-7r5--','5pb2rH'],['-5b7--7r5--','5b2rH'],['-5b7-----7----','5b2 7'],['-5b7-8------','5b2 8'],['-5b7r5-5-----','5b2r 5'],['-4b6r4-2-----','4b2r 2']];
+ for(const [l,want] of cases){n++;const P=mk(l);const got=sum(P);if(got!==want)fail('held bend '+l+' -> '+got+' (want '+want+')');if(P.warn.length)fail('held bend warns '+l+' '+JSON.stringify(P.warn))}
+ const L=X.layoutTab(mk('-5b7-7r5p3-5---'),{unit:0.5});const b=L.ev.find(e=>e.rel);n++;if(!(b&&b.rt>=0.3&&b.rt<=0.92))fail('release timing rt '+(b&&b.rt));
+ const chains=L.chains.map(c=>c.map(e=>(e.x||'-')+e.f).join(','));n++;if(chains.join('|')!=='-5,p3|-5')fail('held bend chain '+chains.join('|'))}
 // junk never crashes
 let seed=7;const rnd=()=>(seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff;
 const alpha='-|0123456789hpbr/\\~xX()<>[]tT .\nPM:*=abcdefg#';

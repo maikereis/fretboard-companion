@@ -240,7 +240,18 @@ const Sound = (() => {
       if (LEGATO.includes(e.x) && chains.length) chains[chains.length - 1].push(e);
       else chains.push([e]);
     });
-    const nodes = chains.map(ch => chain(ch, t0, spb, vel));
+    // A plucked string only rings loudly for a second or so. A hammer-on, pull-off or slide that comes later than that
+    // (for example a pull-off after a long held bend) is played as a soft new pluck, otherwise it would be silent.
+    const RING = 1.2, parts = [];
+    chains.forEach(ch => {
+      let cur = [ch[0]];
+      for (let i = 1; i < ch.length; i++) {
+        if ((ch[i].t - cur[0].t) * spb > RING) { parts.push(cur); cur = [ch[i]]; cur.soft = true; }
+        else cur.push(ch[i]);
+      }
+      parts.push(cur);
+    });
+    const nodes = parts.map(ch => chain(ch, t0, spb, ch.soft ? vel * 0.7 : vel));
     return {
       stop() {
         const t = ctx.currentTime;
@@ -294,7 +305,7 @@ const Sound = (() => {
     if (f.pb) {                                          // pre-bend: already bent when picked, optionally released
       rp.setValueAtTime(semi(f.pb), t);
       if (f.rel) {
-        const a = t + dur * 0.45, d = Math.min(0.35, dur * 0.3);
+        const a = t + dur * (f.rt || 0.45), d = Math.min(0.35, dur * 0.3);   // f.rt: where the release starts, as a share of the note (from the tab's spacing)
         rp.setValueAtTime(semi(f.pb), a);
         rp.exponentialRampToValueAtTime(1, a + d);
       }
@@ -303,7 +314,7 @@ const Sound = (() => {
       rp.setValueAtTime(1, a);
       rp.exponentialRampToValueAtTime(semi(f.bend), a + u);
       if (f.rel) {
-        const b = t + dur * 0.62, d = Math.min(0.3, dur * 0.28);
+        const b = t + dur * (f.rt || 0.62), d = Math.min(0.3, dur * 0.28);
         rp.setValueAtTime(semi(f.bend), b);
         rp.exponentialRampToValueAtTime(1, b + d);
       }

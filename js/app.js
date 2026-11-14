@@ -423,7 +423,7 @@ function capText(ch,j,g){
   if(e.x==='p')return `No pick: pull ${pv.tap?'your tapping finger':'finger '+F(pv.f)} off with a small sideways flick. `+(e.f===0?'The open string rings.':`Finger ${F(e.f)} is already on fret ${e.f}, so that note rings.`);
   return `No pick: keep pressing and slide ${e.x==='/'?'up':'down'} to fret ${e.f}.`;
  }
- const fr=e.f===0?'the open string':`fret ${e.f} with finger ${F(e.f)}`,rel=e.rel?' Then let it slowly back down.':'';
+ const fr=e.f===0?'the open string':`fret ${e.f} with finger ${F(e.f)}`,rel=(e.held?' Keep it bent and let it ring.':'')+(e.rel?' Then let it slowly back down.':'');
  if(e.x==='dead')return 'Rest the finger lightly across the string, without pressing it to the fret, and pick. You hear a dull thud.';
  if(e.nh)return `Touch the string lightly right above fret ${e.f} (not behind it), pick, then lift the finger away at once.`;
  if(e.tap)return `Tap fret ${e.f} hard with a finger of your picking hand. No pick needed.`;
@@ -466,9 +466,9 @@ function closeState(ev,b,g,spb){
   // how far the string is pushed: same shape as the pitch change in the sound
   let dy=0;
   if(m0.pb){const a=m0.pb;dy=ts<sT?a*clamp01((ts-vST)/Math.max(1e-6,sT-vST)):a;
-   if(m0.rel){const a0=sT+dur*0.45,d=Math.min(0.35,dur*0.3);if(ts>=a0)dy=a*Math.max(0,1-(ts-a0)/d)}}
+   if(m0.rel){const a0=sT+dur*(m0.rt||0.45),d=Math.min(0.35,dur*0.3);if(ts>=a0)dy=a*Math.max(0,1-(ts-a0)/d)}}
   else if(m0.bend){const a0=sT+Math.min(0.12,dur*0.1),u=Math.min(0.3,dur*0.3);dy=m0.bend*clamp01((ts-a0)/u);
-   if(m0.rel){const b0=sT+dur*0.62,d=Math.min(0.3,dur*0.28);if(ts>=b0)dy=m0.bend*Math.max(0,1-(ts-b0)/d)}}
+   if(m0.rel){const b0=sT+dur*(m0.rt||0.62),d=Math.min(0.3,dur*0.28);if(ts>=b0)dy=m0.bend*Math.max(0,1-(ts-b0)/d)}}
   let wob=0,vibAmp=0;
   ch.forEach(e=>{if(!e.vib)return;const s0=T(e)+Math.min(0.35,e.d*spb*0.3),ed=(e.t+e.d)*spb;vibAmp=e.vib===2?8:5;
    if(ts>=s0&&ts<=ed)wob=vibAmp*clamp01((ts-s0)/0.25)*Math.sin(2*Math.PI*5.5*(ts-s0))});
@@ -574,7 +574,7 @@ function lexTabLine(b,s,ln,cmap,blk,W){
     if(pre)last.pb=dd;else last.bend=dd;last.ei=i+m[0].length-1;gap=0}
    i+=m[0].length;continue}
   if((m=/^r(?:\(\d{1,2}\)|\d{1,2})?/.exec(r))){
-   if(last&&(last.bend||last.pb)){last.rel=1;last.ei=i+m[0].length-1;gap=0}else once('rel','A release (r) needs a bend before it.');
+   if(last&&(last.bend||last.pb)){last.rel=1;if(cmap[i]!=null)last.relc=cmap[i];last.ei=i+m[0].length-1;gap=0}else once('rel','A release (r) needs a bend before it.');
    i+=m[0].length;continue}
   if((m=/^~+/.exec(r))){if(last&&plain()){last.vib=m[0].length>=4?2:1;last.ei=i+m[0].length-1;gap=0}else once('vib','Vibrato (~) needs a normal note before it.');i+=m[0].length;continue}
   if((m=/^([hp])(\d{1,2})/.exec(r))){
@@ -595,7 +595,10 @@ function lexTabLine(b,s,ln,cmap,blk,W){
    else once('sl','A slide mark (/ or \\) needs a fret number after it, or a plain note right before it.');
    i+=m[0].length;continue}
   if(c==='x'||c==='X'){add(0,i,1,{x:'dead'});i++;continue}
-  if((m=/^\d{1,2}/.exec(r))){add(+m[0],i,m[0].length);i+=m[0].length;continue}
+  if((m=/^\d{1,2}/.exec(r))){
+   // 5b7-7r5: the second 7 is the bent string being held (not picked again), as long as it sits a few dashes after the bend
+   if(last&&(last.bend||last.pb)&&!last.rel&&!last.held&&gap>=1&&gap<=3&&+m[0]===last.f+(last.bend||last.pb)){last.held=1;last.ei=i+m[0].length-1;gap=0;i+=m[0].length;continue}
+   add(+m[0],i,m[0].length);i+=m[0].length;continue}
   once('sym'+c,'The symbol “'+c+'” is not supported, so it was skipped.');i++;gap++;
  }
  return out;
@@ -664,7 +667,8 @@ function layoutTab(P,o){
  else{slotCol=Array.from({length:P.ncols},(_,c)=>c);tOf=c=>c*unit;len=P.ncols*unit}
  const ev=P.events.map(e=>Object.assign({},e,{t:tOf(e.col)}));
  const per={};ev.forEach(e=>(per[e.s]=per[e.s]||[]).push(e));
- Object.values(per).forEach(l=>{l.sort((a,b)=>a.t-b.t);l.forEach((e,i)=>{const nx=l[i+1];e.d=Math.max(unit,Math.min(4,nx?nx.t-e.t:Math.max(unit,Math.min(2,len-e.t))))})});
+ Object.values(per).forEach(l=>{l.sort((a,b)=>a.t-b.t);l.forEach((e,i)=>{const nx=l[i+1];e.d=Math.max(unit,Math.min(4,nx?nx.t-e.t:Math.max(unit,Math.min(2,len-e.t))));
+  if(!even&&e.rel&&e.relc!=null&&e.relc>e.col)e.rt=Math.max(0.3,Math.min(0.92,(e.relc-e.col)*unit/e.d))})});
  const chains=chainsOf(ev);
  const bars=[...new Set(P.barCols.filter(c=>c<P.ncols))].sort((a,b)=>a-b);
  const staffs=P.blocks.map(b=>b.off).filter(c=>c<P.ncols),split=!o.split||o.split==='auto'?(staffs.length>1?'lines':bars.length>1?'bars':'gaps'):o.split;
@@ -1054,6 +1058,7 @@ const EXAMPLES=[
  {n:'Slides',t:'60 bpm\nE|-3/5-5/3-------------------------------------------|\nB|-3/5-5/3---3/5-5/3p0---3/5-5/3p0-------------------|\nG|-----------2/4-4/2p0---2/4-4/2p0--4----------------|\nD|----------------------------------5----------------|\nA|---------------------------------------------------|\nE|---------------------------------------------------|'},
  {n:'Hammer-ons and pull-offs',t:'80 bpm\ne|-0h3p0-----3h5p3-----|\nB|---------1---------1-|\nG|---0-----------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'},
  {n:'Several staves (riff)',t:'90 bpm\ne|-----------|-----3-3-3---3-3--------3---------|\nB|-----------|-----3-3-3---3-3--------3---------|\nG|-----------|-----0-0-0---0-0--------0-0-------|\nD|-------0---|-2---2-2-2---2-2--------------2---|\nA|---0h2-----|-----2-2-2---2-2------------------|\nE|-----------|-----x-x-x---x-x------------------|\n\ne|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nB|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nG|-----0--0--0--0-0-|--------------|--2---2-2------2-2-2---|\nD|-2---2--2--2--2-2-|--2--0--------|--2---2-2------2-2-2---|\nA|-----2--2--2--2-2-|--------2--0--|--0-------0------------|\nE|-----x--x--x--x-x-|--------------|-----------------------|'},
+ {n:'Held bend and release',t:'60 bpm\nE|---------------------------------------------------|\nB|-------3---5-5b7-7r5p3-5---------------------------|\nG|-2h3/4---4----------------2~-4b6r4-2---------------|\nD|---------------------------------------------------|\nA|---------------------------------------------------|\nE|---------------------------------------------------|'},
  {n:'Bend, vibrato, dead note',t:'70 bpm\ne|-8b10r8---7~~~~---5---|\nB|-----------------x---|\nG|---------------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'}];
 const ed={text:EXAMPLES[0].t,bpm:60,unit:0.5,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,mk:{a:null,b:null},cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
 try{const d=JSON.parse(localStorage.getItem('fc.tab')||'null');if(d&&typeof d.text==='string'&&d.text.length<20000)ed.text=d.text}catch(e){}
