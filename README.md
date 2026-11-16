@@ -187,6 +187,8 @@ Released under the [PolyForm Shield License 1.0.0](https://polyformproject.org/l
 
 ### Your own tab ("My tab")
 
+**Symbols view.** "Follow along" draws your tab as notation, like Songsterr: a six-line staff with numbers, bar lines and numbers, hammer-on/pull-off slurs with letters, slide lines, bend arrows (½, full, 1½) and releases, vibrato, palm-mute dashes, and rhythm stems, beams and dots worked out from the spacing. A line of chord names above a staff (`Em7   G`) is drawn over the notes. Click a note to set the start bar, click another to set the end. The Symbols | Text buttons switch back to the plain text. Limits: rests, triplets and time signatures are not drawn (note lengths are estimated from spacing), and slurs that cross a line break are skipped.
+
 It opens with the melody of "Happy birthday to you" (key of G, four staves, 90 bpm) so there is something to play straight away.
 
 Paste a plain-text tab (six lines, one per string) into **Tab → My tab** and the app shows, move by move, which finger goes where, then plays it.

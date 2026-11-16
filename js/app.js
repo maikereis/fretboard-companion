@@ -604,18 +604,20 @@ function lexTabLine(b,s,ln,cmap,blk,W){
  return out;
 }
 function parseTab(text){
- const P={warn:[],blocks:[],events:[],chains:[],barCols:[0],ncols:0,cols:[],tuning:[0,0,0,0,0,0],tuned:false,bpm:null,unit:null,ok:false};
+ const P={warn:[],blocks:[],events:[],chains:[],barCols:[0],ncols:0,cols:[],tuning:[0,0,0,0,0,0],tuned:false,bpm:null,unit:null,chords:[],ok:false};
  const W=(ln,msg)=>P.warn.push({line:ln+1,msg});
  // typographic dashes become '-', and a tab pasted with its line breaks lost (…|B|-…) is cut back into lines
  const raw=String(text||'').replace(/\r\n?/g,'\n').replace(/[\u2010-\u2015\u2212]/g,'-').replace(/\t/g,'    ').replace(/\|(?:[ ]*\b(?:or|and)\b)?[ ]*(?=[A-Ga-g][#♯b♭]?\|[-0-9xX(<\[~])/g,'|\n').split('\n');
  const isTab=l=>/^\s*(?:[A-Ga-g][#♯b♭]?\s*)?[|:]/.test(l)&&(l.match(/-/g)||[]).length>=3;
- const groups=[],pmLines=[];let cur=null;
+ const CHORDTOK=/^[A-G][#♯b♭]?(?:maj|min|dim|aug|sus|add|m|M|\+|°|ø)?\d{0,2}(?:(?:sus|add|maj|b|#|♯|♭)\d{0,2})*(?:\/[A-G][#♯b♭]?)?$/;
+ const groups=[],pmLines=[],chordLines=[];let cur=null;
  raw.forEach((l,i)=>{
   if(isTab(l)){if(!cur){cur={at:i,lines:[]};groups.push(cur)}cur.lines.push(l);return}
   cur=null;let m;
   if((m=/(\d{2,3})\s*bpm|\b(?:bpm|tempo)\s*[:=]?\s*(\d{2,3})\b/i.exec(l)))P.bpm=Math.max(30,Math.min(240,+(m[1]||m[2])));
   if((m=/\b(?:rhythm|grid|dash(?:es)?)\b[^0-9a-z]{0,6}(1\/4|1\/8|1\/16|1\/32|quarter|eighth|sixteenth|triplet)/i.exec(l)))P.unit={'1/4':1,quarter:1,'1/8':0.5,eighth:0.5,'1/16':0.25,sixteenth:0.25,'1/32':0.125,triplet:1/3}[m[1].toLowerCase()];
   if(/^[\sPM.\-|]+$/.test(l)&&/P\.?M/.test(l))pmLines.push({i,l});
+  else if(l.trim()&&l.trim().split(/\s+/).every(t=>CHORDTOK.test(t)))chordLines.push({i,l});
  });
  let off=0;
  groups.forEach(g=>{
@@ -645,6 +647,9 @@ function parseTab(text){
     const pl=pre[0][0].length,re=/P\.?M\.?-*\|?/g;let m;
     while((m=re.exec(p.l))){const a=m.index-pl,z=m.index+m[0].length-1-pl;mine.forEach(e=>{if(e.ci>=a&&e.ci<=z)e.pm=1})}
    });
+   // chord names written above a staff (Em7   G) sit over the notes below them
+   chordLines.filter(p=>p.i<first&&p.i>=first-2).forEach(p=>{const pl=pre[0][0].length,re=/\S+/g;let m;
+    while((m=re.exec(p.l))){let k=Math.max(0,m.index-pl);while(k<w&&cmap[k]==null)k++;if(k<w)P.chords.push({col:cmap[k],name:m[0],blk})}});
    P.blocks.push({labels:labels.map((l,j)=>l||EDNAMES[sOf(j)]),body,cmap,off,w,first});
    off+=c;
   }
@@ -699,6 +704,124 @@ function partSteps(part){
 }
 const withMT=(ev,tun)=>ev.map(e=>{const o=MID.map((m,s)=>m+((tun&&tun[s])||0));
  return Object.assign({},e,{m:e.x==='dead'?o[e.s]+2:e.nh?o[e.s]+(HARM[e.f]||12):o[e.s]+e.f,m2:e.f2!==undefined?o[e.s]+e.f2:undefined})});
+// ---------- Your tab drawn as symbols: staff, slurs, bend arrows and rhythm stems ----------
+// symModel() decides where everything goes (pure, so it can be tested without a browser); symSVG() turns that into drawing instructions.
+const SYM={lh:13,bot:42,left:36,pad:10};
+const SBEND={1:'½',2:'full',3:'1½'};
+const NOTEV=[4,3,2,1.5,1,0.75,0.5,0.375,0.25,0.125],DOTV={3:1,1.5:1,0.75:1,0.375:1};
+const noteVal=g=>{for(const v of NOTEV)if(g>=v-1e-6)return v;return 0.125}; // the longest ordinary note value that fits the space to the next note
+const symEsc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const symGl=e=>e.x==='dead'?'x':e.nh?'<'+e.f+'>':''+e.f;
+const symTw=e=>Math.max(10,symGl(e).length*7+3);
+function symModel(P,L,width){
+ const by=new Map();L.ev.forEach(e=>{if(!by.has(e.col))by.set(e.col,[]);by.get(e.col).push(e)});
+ const slots=[...by.keys()].sort((a,b)=>a-b).map((c,i)=>({i,col:c,evs:by.get(c).slice().sort((a,b)=>b.s-a.s),t:by.get(c)[0].t}));
+ slots.forEach((s,i)=>{const nx=slots[i+1],gap=nx?nx.t-s.t:Math.min(1,Math.max(...s.evs.map(e=>e.d)));
+  s.gap=gap;s.val=noteVal(gap);let w=22+12*Math.log2(1+Math.min(gap,4)/0.25);
+  s.evs.forEach(e=>{if(e.bend||e.pb)w=Math.max(w,e.rel?68:48);else if(e.vib||e.tr)w=Math.max(w,34);w=Math.max(w,e.nh?42:e.f>=10?32:0)});
+  s.w=Math.round(w)});
+ const edges=[...new Set([...P.barCols,...P.blocks.map(b=>b.off)])].filter(c=>c<P.ncols).sort((a,b)=>a-b);
+ const meas=edges.map((c,i)=>({i,c0:c,first:P.blocks.some(b=>b.off===c),slots:[]}));
+ slots.forEach(s=>{let m=0;meas.forEach((q,i)=>{if(q.c0<=s.col)m=i});meas[m].slots.push(s);s.m=m});
+ const W=Math.max(260,width||560)-SYM.left-8,lines=[];let cur=null;
+ const fresh=()=>{cur={pieces:[],w:0};lines.push(cur)};
+ const put=(m,sl,start)=>{const pw=SYM.pad*2+(sl.reduce((a,s)=>a+s.w,0)||26);cur.pieces.push({m,slots:sl,start,w:pw});cur.w+=pw};
+ meas.forEach(m=>{
+  const mw=SYM.pad*2+(m.slots.reduce((a,s)=>a+s.w,0)||26);
+  if(!cur||m.first)fresh();            // every staff of the text starts a new line
+  if(cur.pieces.length&&cur.w+mw>W)fresh();
+  if(mw<=W){put(m,m.slots,true);return}
+  let chunk=[],cw=SYM.pad*2,start=true;  // a bar wider than the line is cut between notes
+  m.slots.forEach(s=>{if(chunk.length&&cw+s.w>W){if(cur.pieces.length)fresh();put(m,chunk,start);start=false;chunk=[];cw=SYM.pad*2}chunk.push(s);cw+=s.w});
+  if(cur.pieces.length)fresh();put(m,chunk,start);
+ });
+ lines.forEach((ln,li)=>{let x=SYM.left;ln.pieces.forEach(p=>{p.x=x;let sx=x+SYM.pad;p.slots.forEach(s=>{s.x=sx+s.w/2;s.line=li;sx+=s.w});x+=p.w});ln.end=x});
+ const chords=P.chords||[];
+ lines.forEach((ln,li)=>{ // how much room this line needs above the staff: chord names, bend arrows, slurs, vibrato, palm muting
+  let need=6,hasChord=false;const sl=ln.pieces.flatMap(p=>p.slots);
+  sl.forEach(s=>s.evs.forEach(e=>{const r=5-e.s;
+   if(e.bend||e.pb)need=Math.max(need,44-13*r);if(e.vib||e.tr)need=Math.max(need,15-13*r);if(e.tap)need=Math.max(need,19-13*r);if(e.pm)need=Math.max(need,23);
+   if(e.x==='h'||e.x==='p')need=Math.max(need,26-13*r)}));
+  chords.forEach(c=>{const s=slots.find(q=>q.col>=c.col);if(s&&s.line===li)hasChord=true});
+  ln.chord=hasChord;ln.top=(hasChord?31:15)+need;ln.H=ln.top+5*SYM.lh+SYM.bot});
+ return{slots,meas,lines,width:lines.length?Math.max(...lines.map(l=>l.end))+6:0,chords};
+}
+function symSVG(M,L){
+ const {lh,bot,left}=SYM,f=n=>Math.round(n*10)/10;
+ const slotAt=new Map();M.slots.forEach(s=>slotAt.set(s.col,s));
+ const wrap=(col,str)=>str?`<g data-lc="${col}">${str}</g>`:'';
+ function slotG(s,top){
+  const bt=top+5*lh,yS=q=>top+(5-q)*lh,x=s.x,w=s.w,y0=top-18,h=bt+bot-6-y0,xl=f(x-w/2),xr=f(x+w/2);
+  let g=`<g class="slot" data-c="${s.col}"><rect class="hit" x="${xl}" y="${y0}" width="${w}" height="${h}"/><line class="eL" x1="${xl}" y1="${y0}" x2="${xl}" y2="${y0+h}"/><line class="eR" x1="${xr}" y1="${y0}" x2="${xr}" y2="${y0+h}"/>`;
+  s.evs.forEach(e=>{const y=yS(e.s),tw=symTw(e);
+   g+=`<rect class="nb" x="${f(x-tw/2)}" y="${y-7}" width="${tw}" height="14" rx="3"/><text class="fn" x="${f(x)}" y="${y}">${symEsc(symGl(e))}</text>`;
+   if(e.x==='slin')g+=`<line class="lk" x1="${f(x-tw/2-10)}" y1="${y+5}" x2="${f(x-tw/2-2)}" y2="${y-4}"/>`;
+   if(e.x==='slout')g+=`<line class="lk" x1="${f(x+tw/2+2)}" y1="${y-4}" x2="${f(x+tw/2+10)}" y2="${y+5}"/>`;
+   if(e.bend){const a=x+tw/2+1;
+    g+=`<path class="lk" d="M${f(a)} ${y-5}C${f(a+9)} ${y-6} ${f(a+15)} ${y-14} ${f(a+16)} ${y-24}"/><path class="ah" d="M${f(a+12)} ${y-23}L${f(a+20)} ${y-23}L${f(a+16)} ${y-32}Z"/><text class="bl" x="${f(a+16)}" y="${y-36}">${SBEND[e.bend]||''}</text>`;
+    if(e.rel)g+=`<path class="lk" d="M${f(a+30)} ${y-32}C${f(a+31)} ${y-24} ${f(a+35)} ${y-16} ${f(a+40)} ${y-14}"/><path class="ah" d="M${f(a+36)} ${y-15}L${f(a+44)} ${y-15}L${f(a+40)} ${y-5}Z" transform="rotate(0)"/>`}
+   if(e.pb){g+=`<line class="lk" x1="${f(x)}" y1="${y-9}" x2="${f(x)}" y2="${y-24}"/><path class="ah" d="M${f(x-4)} ${y-23}L${f(x+4)} ${y-23}L${f(x)} ${y-32}Z"/><text class="bl" x="${f(x)}" y="${y-36}">${SBEND[e.pb]||''}</text>`;
+    if(e.rel)g+=`<line class="lk" x1="${f(x+16)}" y1="${y-32}" x2="${f(x+16)}" y2="${y-16}"/><path class="ah" d="M${f(x+12)} ${y-15}L${f(x+20)} ${y-15}L${f(x+16)} ${y-6}Z"/>`}
+   if(e.vib||e.tr){const amp=e.vib===2?7:4,x0=x-tw/2;g+=`<path class="lk" d="M${f(x0)} ${y-11}q3 ${-amp} 6 0t6 0t6 0t6 0t6 0"/>`}
+   if(e.tr)g+=`<text class="bl" x="${f(x-tw/2-2)}" y="${y-14}" text-anchor="end">tr</text>`;
+   if(e.tap)g+=`<text class="bl" x="${f(x)}" y="${y-11}">T</text>`;
+  });
+  return g+'</g>';
+ }
+ function links(L){const per=M.lines.map(()=>'');
+  (L.chains||[]).forEach(ch=>ch.forEach((e,j)=>{
+   if(!j||!['h','p','/','\\'].includes(e.x))return;
+   const a=slotAt.get(ch[j-1].col),b=slotAt.get(e.col);if(!a||!b||a.line!==b.line)return;
+   const y=M.lines[a.line].top+(5-e.s)*lh,x1=a.x+symTw(ch[j-1])/2-1,x2=b.x-symTw(e)/2+1;
+   if(e.x==='h'||e.x==='p'){const pv=ch[j-1],low=!!(pv.bend||pv.pb||pv.rel); // above the note, or below it when bend arrows already use the space above
+    per[a.line]+=wrap(e.col,low?`<path class="lk" d="M${f(x1)} ${y+8}Q${f((x1+x2)/2)} ${y+22} ${f(x2)} ${y+8}"/><text class="sl" x="${f((x1+x2)/2)}" y="${y+27}">${e.x}</text>`:`<path class="lk" d="M${f(x1)} ${y-8}Q${f((x1+x2)/2)} ${y-22} ${f(x2)} ${y-8}"/><text class="sl" x="${f((x1+x2)/2)}" y="${y-18}">${e.x}</text>`)}
+   else per[a.line]+=wrap(e.col,e.x==='/'?`<line class="lk" x1="${f(x1+1)}" y1="${y+4}" x2="${f(x2-1)}" y2="${y-4}"/>`:`<line class="lk" x1="${f(x1+1)}" y1="${y-4}" x2="${f(x2-1)}" y2="${y+4}"/>`);
+  }));return per}
+
+ function rhythm(ln){
+  const top=ln.top,bt=top+5*lh;
+  const items=ln.pieces.flatMap(p=>p.slots.map(s=>({s,k:p.m.i+':'+Math.floor(s.t+1e-6)})));let g='';const y1=bt+9,y2=y1+22;
+  const stem=s=>`<line class="st" x1="${f(s.x)}" y1="${y1}" x2="${f(s.x)}" y2="${y2}"/>`+(DOTV[s.val]?`<circle class="dt" cx="${f(s.x+5)}" cy="${y2-3}" r="1.4"/>`:'');
+  const beam=(xa,xb,yy)=>`<line class="bm" x1="${f(xa)}" y1="${yy}" x2="${f(xb)}" y2="${yy}"/>`;
+  let i=0;
+  while(i<items.length){
+   const s0=items[i].s;
+   if(s0.val>0.5){
+    if(s0.val>=4)g+=wrap(s0.col,`<circle class="hl" cx="${f(s0.x)}" cy="${y1+6}" r="3.5"/>`);
+    else g+=wrap(s0.col,stem(s0)+(s0.val>=2?`<circle class="hl" cx="${f(s0.x)}" cy="${y2+3}" r="3"/>`:''));
+    i++;continue}
+   let j=i;while(j+1<items.length&&items[j+1].k===items[i].k&&items[j+1].s.val<=0.5)j++;
+   const grp=items.slice(i,j+1).map(q=>q.s);
+   grp.forEach(s=>{g+=wrap(s.col,stem(s))});
+   if(grp.length>1){let bs='';
+    [0.5,0.25,0.125].forEach((th,k)=>{const yy=y2-k*4;let a=0;
+     while(a<grp.length){if(grp[a].val>th+1e-6){a++;continue}let b=a;while(b+1<grp.length&&grp[b+1].val<=th+1e-6)b++;
+      if(b>a)bs+=beam(grp[a].x,grp[b].x,yy);else{const dir=a+1<grp.length?1:-1;bs+=beam(grp[a].x,grp[a].x+dir*6,yy)}
+      a=b+1}});
+    g+=wrap(grp[0].col,bs)}
+   else{const n=grp[0].val<=0.125?3:grp[0].val<=0.25?2:1;let fl='';
+    for(let k=0;k<n;k++)fl+=`<path class="st nf" d="M${f(grp[0].x)} ${y2-k*4}Q${f(grp[0].x+7)} ${y2-k*4-2} ${f(grp[0].x+6)} ${y2-k*4-9}"/>`;
+    g+=wrap(grp[0].col,fl)}
+   i=j+1}
+  return g}
+ const lk=links(L);
+ return M.lines.map((ln,li)=>{
+  const top=ln.top,bt=top+5*lh,H=ln.H,wpx=Math.ceil(ln.end+6);let g='';
+  for(let k=0;k<6;k++)g+=`<line class="sline" x1="${left-8}" y1="${top+k*lh}" x2="${f(ln.end)}" y2="${top+k*lh}"/>`;
+  ['T','A','B'].forEach((c,k)=>{g+=`<text class="clef" x="${left-20}" y="${top+lh*(1.2+k*1.6)}">${c}</text>`});
+  ln.pieces.forEach(p=>{g+=`<line class="bar" x1="${f(p.x)}" y1="${top}" x2="${f(p.x)}" y2="${bt}"/>`;
+   if(p.start)g+=`<text class="mn" x="${f(p.x+3)}" y="10">${p.m.i+1}</text>`});
+  g+=`<line class="bar" x1="${f(ln.end)}" y1="${top}" x2="${f(ln.end)}" y2="${bt}"/>`;
+  M.chords.forEach(c=>{const s=M.slots.find(q=>q.col>=c.col);if(s&&s.line===li)g+=`<text class="chn" x="${f(s.x-s.w/2+3)}" y="27">${symEsc(c.name)}</text>`});
+  // palm muting: a dashed line with P.M. above the notes that carry it
+  const sl=ln.pieces.flatMap(p=>p.slots);let a=0;
+  while(a<sl.length){if(!sl[a].evs.some(e=>e.pm)){a++;continue}let b=a;while(b+1<sl.length&&sl[b+1].evs.some(e=>e.pm))b++;
+   g+=`<text class="pm" x="${f(sl[a].x-sl[a].w/2+3)}" y="${top-14}">P.M.</text><line class="pml" x1="${f(sl[a].x-sl[a].w/2+30)}" y1="${top-18}" x2="${f(sl[b].x+sl[b].w/2-3)}" y2="${top-18}"/>`;a=b+1}
+  g+=lk[li];
+  ln.pieces.forEach(p=>p.slots.forEach(s=>{g+=slotG(s,top)}));
+  g+=rhythm(ln);
+  return `<svg class="symsvg" xmlns="http://www.w3.org/2000/svg" width="${wpx}" height="${H}" viewBox="0 0 ${wpx} ${H}" role="img" aria-label="Tab line ${li+1}">${g}</svg>`}).join('');
+}
 // ---------- Scales ----------
 // iv = frets above the root, d = degree labels, core = notes that define the boxes (blues = minor pentatonic + blue note).
 const SCALES={
@@ -1060,16 +1183,16 @@ const EXAMPLES=[
  {n:'Several staves (riff)',t:'90 bpm\ne|-----------|-----3-3-3---3-3--------3---------|\nB|-----------|-----3-3-3---3-3--------3---------|\nG|-----------|-----0-0-0---0-0--------0-0-------|\nD|-------0---|-2---2-2-2---2-2--------------2---|\nA|---0h2-----|-----2-2-2---2-2------------------|\nE|-----------|-----x-x-x---x-x------------------|\n\ne|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nB|-----3--3--3--3-3-|--------------|--3---3-3------3-3-3---|\nG|-----0--0--0--0-0-|--------------|--2---2-2------2-2-2---|\nD|-2---2--2--2--2-2-|--2--0--------|--2---2-2------2-2-2---|\nA|-----2--2--2--2-2-|--------2--0--|--0-------0------------|\nE|-----x--x--x--x-x-|--------------|-----------------------|'},
  {n:'Held bend and release',t:'60 bpm\nE|---------------------------------------------------|\nB|-------3---5-5b7-7r5p3-5---------------------------|\nG|-2h3/4---4----------------2~-4b6r4-2---------------|\nD|---------------------------------------------------|\nA|---------------------------------------------------|\nE|---------------------------------------------------|'},
  {n:'Bend, vibrato, dead note',t:'70 bpm\ne|-8b10r8---7~~~~---5---|\nB|-----------------x---|\nG|---------------------|\nD|---------------------|\nA|---------------------|\nE|---------------------|'}];
-const ed={text:EXAMPLES[0].t,bpm:60,unit:0.5,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,mk:{a:null,b:null},cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
-try{const d=JSON.parse(localStorage.getItem('fc.tab')||'null');if(d&&typeof d.text==='string'&&d.text.length<20000)ed.text=d.text}catch(e){}
-const edSave=()=>{try{localStorage.setItem('fc.tab',JSON.stringify({text:ed.text}))}catch(e){}};
+const ed={text:EXAMPLES[0].t,bpm:60,unit:0.5,mode:'cols',split:'auto',sel:'all',loop:false,metro:false,count:true,view:'sym',slotCols:[],mk:{a:null,b:null},cur:-1,P:null,L:null,seg:null,col:-1,step:-1};
+try{const d=JSON.parse(localStorage.getItem('fc.tab')||'null');if(d&&typeof d.text==='string'&&d.text.length<20000)ed.text=d.text;if(d&&(d.view==='sym'||d.view==='text'))ed.view=d.view}catch(e){}
+const edSave=()=>{try{localStorage.setItem('fc.tab',JSON.stringify({text:ed.text,view:ed.view}))}catch(e){}};
 const edTog=(k,l,on)=>`<button data-ed="${k}" aria-pressed="${on}">${l}</button>`;
 function edShell(){
  return `<section class="card edmain"><div class="bar"><h2>Your tab</h2><span class="hint">Paste a text tab, then press play</span></div>
  <div class="edtop">
   <div class="edcol"><label class="edlbl" for="edtext">Tab text <span class="hint">six lines per staff · add “60 bpm” above for tempo</span></label>
    <textarea id="edtext" class="edtext" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="edwarn">${escH(ed.text)}</textarea></div>
-  <div class="edcol"><div class="edlbl edlbl2">Follow along <span class="hint" id="edmkh"></span><button id="edmkc" data-ed="mkclear" hidden>Clear</button></div><pre class="ascii edpre" id="edpre" aria-label="The tab you entered"></pre></div>
+  <div class="edcol"><div class="edlbl edlbl2">Follow along <span class="hint" id="edmkh"></span><span class="edview" role="group" aria-label="Show the tab as"><button data-ed="view:sym" aria-pressed="true">Symbols</button><button data-ed="view:text" aria-pressed="false">Text</button></span><button id="edmkc" data-ed="mkclear" hidden>Clear</button></div><pre class="ascii edpre" id="edpre" aria-label="The tab you entered"></pre></div>
  </div>
  <div id="edwarn" class="edwarn" role="status"></div>
  <div class="edbar">
@@ -1113,9 +1236,17 @@ function edPartsUI(){
  $('edplay').disabled=!L;
 }
 function edPre(){
- const P=ed.P,L=ed.L;if(!L){$('edpre').textContent='';return}
+ const P=ed.P,L=ed.L,pre=$('edpre');if(!L){pre.textContent='';return}
  const inSel=c=>ed.sel==='all'||(L.parts[ed.sel]&&c>=L.parts[ed.sel].c0&&c<=L.parts[ed.sel].c1);
- $('edpre').innerHTML=P.blocks.map(b=>[0,1,2,3,4,5].map(j=>escH(b.labels[j]||' ')+'|'+[...b.body[j]].map((ch,i)=>{const c=b.cmap[i];return c==null?escH(ch):`<span data-c="${c}"${inSel(c)?'':' class="dim"'}>${escH(ch)}</span>`}).join('')).join('\n')).join('\n\n');
+ pre.classList.toggle('sym',ed.view==='sym');
+ document.querySelectorAll('[data-ed^="view:"]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.ed==='view:'+ed.view)));
+ if(ed.view==='sym'){ // the tab drawn as notation: staff, numbers, slurs, bend arrows, rhythm stems
+  ed.pw=pre.clientWidth;const M=symModel(P,L,ed.pw>0?ed.pw-16:560);ed.slotCols=M.slots.map(s=>s.col);
+  pre.innerHTML=symSVG(M,L);
+  pre.querySelectorAll('[data-c],[data-lc]').forEach(g=>{if(!inSel(+(g.dataset.c!==undefined?g.dataset.c:g.dataset.lc)))g.classList.add('dim')});
+ }else{
+  pre.innerHTML=P.blocks.map(b=>[0,1,2,3,4,5].map(j=>escH(b.labels[j]||' ')+'|'+[...b.body[j]].map((ch,i)=>{const c=b.cmap[i];return c==null?escH(ch):`<span data-c="${c}"${inSel(c)?'':' class="dim"'}>${escH(ch)}</span>`}).join('')).join('\n')).join('\n\n');
+ }
  ed.col=-1;edMarks();
 }
 function edShowPart(i){
@@ -1130,6 +1261,7 @@ function edRefresh(textChanged){
  tStop();if(textChanged)ed.mk={a:null,b:null};edModel(textChanged);edWarn();edOpts();edPartsUI();edPre();
  if(ed.L)edShowPart(ed.sel==='all'?0:ed.sel);else{$('edclose').innerHTML='<p class="hint">The fretting hand appears here once the tab is read.</p>';$('edsteps').innerHTML='';$('edpartname').textContent=''}
 }
+window.addEventListener('resize',()=>{const pre=$('edpre');if(!pre||ed.view!=='sym'||!ed.L)return;clearTimeout(ed.rz);ed.rz=setTimeout(()=>{if(Math.abs(pre.clientWidth-(ed.pw||0))>8)edPre()},150)});
 function edKeep(box,el){ // scrolls only inside its own box, never the page
  if(!box||!el||!el.getBoundingClientRect)return;
  const b=box.getBoundingClientRect(),r=el.getBoundingClientRect();
@@ -1138,7 +1270,8 @@ function edKeep(box,el){ // scrolls only inside its own box, never the page
 }
 function edHL(beat){ // marks the column and the step that sound now
  const L=ed.L,p=L.parts[ed.cur];if(!p)return;
- const lo=ed.mk.a==null?p.c0:Math.max(p.c0,ed.mk.a),hi=ed.mk.b==null?p.c1:Math.min(p.c1,ed.mk.b),c=Math.min(hi,Math.max(lo,L.slotCol[Math.max(0,L.slotAt(beat))])),pre=$('edpre'); // stays inside its own part and markers, even while the last note rings on
+ const lo=ed.mk.a==null?p.c0:Math.max(p.c0,ed.mk.a),hi=ed.mk.b==null?p.c1:Math.min(p.c1,ed.mk.b),c0=Math.min(hi,Math.max(lo,L.slotCol[Math.max(0,L.slotAt(beat))])),pre=$('edpre'); // stays inside its own part and markers, even while the last note rings on
+ let c=c0;if(ed.view==='sym'&&ed.slotCols.length){c=ed.slotCols[0];for(const q of ed.slotCols){if(q<=c0)c=q;else break}} // the drawing has one column per note
  if(c!==ed.col){pre.querySelectorAll('.on').forEach(e=>e.classList.remove('on'));const cs=pre.querySelectorAll(`[data-c="${c}"]`);cs.forEach(e=>e.classList.add('on'));ed.col=c;if(cs[0])edKeep(pre,cs[0])}
  const li=$('edsteps').children;let k=-1;ed.steps=ed.steps&&ed.steps.p===p?ed.steps:{p,t:partSteps(p).map(s=>s.t)};
  ed.steps.t.forEach((t,j)=>{if(t<=beat+1e-9)k=j});
@@ -1198,6 +1331,7 @@ function edMark(col){
 function edClick(b){
  const [k,v]=b.dataset.ed.split(':');
  if(k==='mkclear'){ed.mk={a:null,b:null};edMarks();return}
+ if(k==='view'){ed.view=v==='text'?'text':'sym';edSave();edPre();return}
  if(k==='unit')ed.unit=+v;else if(k==='mode')ed.mode=v;else if(k==='split')ed.split=v;
  else if(k==='sel'){ed.sel=v==='all'?'all':+v;ed.mk={a:null,b:null};tStop();edPartsUI();edPre();edShowPart(ed.sel==='all'?0:ed.sel);return}
  else if(k==='tog'){ed[v]=!ed[v];edOpts();edMarks();if(v==='metro'&&tm.playing)edPlay(false);return}

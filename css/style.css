@@ -757,11 +757,11 @@ details[open] summary {
 .ccap { margin: 4px 0 0; padding: 8px 12px; background: var(--bg); border-radius: 12px; font-weight: 600; min-height: 2.6em; }
 
 /* Your tab (editor) */
-.edtop{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.edtop{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:16px;align-items:start}
 .edcol{min-width:0}
 .edlbl{display:flex;align-items:center;gap:8px;height:30px;margin:0 0 4px;font-weight:600;white-space:nowrap;min-width:0}
 .edlbl .hint{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:400}
-.edtext,.edpre{box-sizing:border-box;width:100%;height:230px;margin:0;overflow:auto}
+.edtext,.edpre{box-sizing:border-box;width:100%;height:300px;margin:0;overflow:auto}
 .edtext{display:block;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:inherit;resize:vertical;white-space:pre;tab-size:4}
 .edtext:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
 .edpre{white-space:pre;font-size:13px;line-height:1.4;overscroll-behavior:contain}
@@ -790,3 +790,36 @@ details[open] summary {
 .edlbl2 .hint{flex:1}
 .edlbl2 button{flex:none;min-height:0;height:24px;padding:0 12px;font-size:12px;line-height:1;border-radius:999px}
 .edlbl2 button[hidden]{display:none}
+
+/* the tab drawn as symbols */
+.edpre.sym{white-space:normal;font:inherit;padding:6px 8px 2px}
+.symsvg{display:block;margin:0 0 6px;color:var(--fg);overflow:visible}
+.symsvg text{fill:currentColor;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;pointer-events:none}
+.symsvg .sline{stroke:currentColor;stroke-opacity:.5;stroke-width:1}
+.symsvg .bar{stroke:currentColor;stroke-width:1.5}
+.symsvg .nb{fill:var(--bg)}
+.symsvg .fn{font-size:12px;font-weight:700;text-anchor:middle;dominant-baseline:central}
+.symsvg .clef{font-size:11px;font-weight:800;text-anchor:middle;dominant-baseline:central}
+.symsvg .mn{font-size:9px;fill-opacity:.65}
+.symsvg .chn{font-size:14px;font-weight:800}
+.symsvg .bl,.symsvg .sl,.symsvg .pm{font-size:9.5px;font-weight:700;text-anchor:middle}
+.symsvg .pm{text-anchor:start}
+.symsvg .lk{fill:none;stroke:currentColor;stroke-width:1.2}
+.symsvg .pml{stroke:currentColor;stroke-width:1;stroke-dasharray:3 3}
+.symsvg .ah{fill:currentColor;stroke:none}
+.symsvg .st{stroke:currentColor;stroke-width:1.5;fill:none}
+.symsvg .bm{stroke:currentColor;stroke-width:3}
+.symsvg .dt{fill:currentColor}
+.symsvg .hl{fill:none;stroke:currentColor;stroke-width:1.5}
+.symsvg .hit{fill:transparent;cursor:pointer}
+.symsvg .slot:hover .hit{fill:var(--soft)}
+.symsvg .slot.rng .hit{fill:var(--soft)}
+.symsvg .slot.on .hit{fill:var(--acc);fill-opacity:.22}
+.symsvg .eL,.symsvg .eR{stroke:none}
+.symsvg .slot.mka .eL{stroke:var(--root);stroke-width:3}
+.symsvg .slot.mkb .eR{stroke:var(--root);stroke-width:3}
+.symsvg .dim{opacity:.4}
+.edview{display:inline-flex;gap:0;flex:none}
+.edview button{min-height:0;height:24px;padding:0 10px;font-size:12px;line-height:1;border-radius:0}
+.edview button:first-child{border-radius:999px 0 0 999px}
+.edview button:last-child{border-radius:0 999px 999px 0}

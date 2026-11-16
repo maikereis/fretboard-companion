@@ -4,7 +4,7 @@
 const fs=require('fs');
 const src=fs.readFileSync(process.argv[2]||'js/app.js','utf8').split('\n'),cut=src.findIndex(l=>l.startsWith('function diagram'));
 const code=src.slice(0,cut).join('\n').replace('const $=id=>document.getElementById(id);','');
-const X=(0,eval)('(function(){const tm={bpm:70};'+code+';return {TECH,LICKS,parseTab,layoutTab,partSteps,asciiTab,withMT}})()');
+const X=(0,eval)('(function(){const tm={bpm:70};'+code+';return {TECH,LICKS,parseTab,layoutTab,partSteps,asciiTab,withMT,symModel,symSVG}})()');
 const sig=e=>[e.s,e.x==='dead'?0:e.f,e.x||'',e.bend||0,e.pb||0,e.rel?1:0,e.vib||0,e.pm?1:0,e.nh?1:0,e.tap?1:0,e.tr?e.f2:0].join(',');
 let bad=0,n=0;const fail=m=>{bad++;console.log('PROBLEM',m)};
 const cases=[];
@@ -66,4 +66,15 @@ for(let i=0;i<4000;i++){n++;let t='';const len=Math.floor(rnd()*400);for(let k=0
 // six-line junk that looks like tab
 for(let i=0;i<1500;i++){n++;const rows=[];for(let j=0;j<6;j++){let r='eBGDAE'[j]+'|';const len=5+Math.floor(rnd()*60);for(let k=0;k<len;k++)r+=alpha.slice(0,28)[Math.floor(rnd()*28)];rows.push(r+'|')}
  try{const P=X.parseTab(rows.join('\n'));if(P.ok){const L=X.layoutTab(P,{unit:0.5});L.parts.forEach(p=>X.partSteps(p));if(!L.parts.length)fail('ok but no parts')}}catch(e){fail('crash '+e.message+'\n'+rows.join('\n'));break}}
+// symbol drawing: every note drawn once, columns left to right, no NaN, at any width
+{const symCheck=(P,L,w,label)=>{n++;try{const M=X.symModel(P,L,w);const svg=X.symSVG(M,L);
+  if(/NaN|undefined|Infinity/.test(svg))fail('sym NaN '+label);
+  const cols=M.slots.map(s=>s.col);if(cols.some((c,i)=>i&&c<=cols[i-1]))fail('sym slot columns not increasing '+label);
+  if(M.slots.reduce((a,s)=>a+s.evs.length,0)!==L.ev.length)fail('sym notes '+M.slots.reduce((a,s)=>a+s.evs.length,0)+' vs '+L.ev.length+' '+label);
+  if((svg.match(/class="slot/g)||[]).length!==M.slots.length)fail('sym slot groups '+label);
+  if(M.slots.some(s=>!(s.x>0)))fail('sym slot x '+label)}catch(e){fail('sym crash '+e.message+' '+label)}};
+ const exs=X.TECH&&X.TECH.length?X.TECH.map(t=>t.tab||t.text||''):[];
+ for(let i=0;i<2500;i++){let r=[];for(let j=0;j<6;j++){let q='eBGDAE'[j]+'|';const len=8+Math.floor(rnd()*70);for(let k=0;k<len;k++)q+=(rnd()<0.6?'-':'-0123456789hpbr/~x'[Math.floor(rnd()*18)]);r.push(q+'|')}
+  const P=X.parseTab((i%5===0?'Em7   G\n':'')+r.join('\n'));if(!P.ok)continue;const L=X.layoutTab(P,{unit:[1,0.5,0.25,0.125][i%4],mode:i%2?'even':'cols'});
+  for(const w of [120,320,560,900])symCheck(P,L,w,'fuzz'+i+'@'+w)}}
 console.log('cases',n,'| problems',bad);process.exit(bad?1:0);
